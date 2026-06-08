@@ -1,161 +1,159 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl,
+  View, Text, ScrollView, TouchableOpacity, Image,
+  StyleSheet, ActivityIndicator, RefreshControl,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, Spacing, Radius, Typography } from '../../theme';
-import { Property, Engagement, Task } from '../../types';
+import { useColors } from '../../context/ThemeContext';
+import { Spacing, Radius, Typography } from '../../theme';
+import { Property, Engagement } from '../../types';
 import { api } from '../../api/client';
-import { useAuth } from '../../context/AuthContext';
 
-function fmt(n: number) {
-  return n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${(n / 1_000).toFixed(0)}K`;
-}
-
-// ── Net worth strip ───────────────────────────────────────────────────────────
-function NetWorthStrip({ properties }: { properties: Property[] }) {
-  const portfolio = properties.reduce((s, p) => s + p.currentValue, 0);
-  const mortgage  = properties.reduce((s, p) => s + p.mortgageBalance, 0);
-  const equity    = portfolio - mortgage;
-
-  return (
-    <LinearGradient colors={[Colors.bgElevated, Colors.bgSurface]} style={styles.strip}>
-      {[
-        { label: 'Portfolio', value: fmt(portfolio), color: Colors.primary },
-        { label: 'Mortgage',  value: fmt(mortgage),  color: Colors.sell },
-        { label: 'Equity',    value: fmt(equity),    color: Colors.success },
-      ].map((item, i) => (
-        <View key={i} style={[styles.stripCell, i < 2 && styles.stripDivider]}>
-          <Text style={[styles.stripValue, { color: item.color }]}>{item.value}</Text>
-          <Text style={Typography.label}>{item.label}</Text>
-        </View>
-      ))}
-    </LinearGradient>
-  );
-}
-
-// ── Journey banner ────────────────────────────────────────────────────────────
-function JourneyBanner({ engagement }: { engagement: Engagement }) {
-  const isBuy = engagement.type === 'buy';
-  const color = isBuy ? Colors.buy : Colors.sell;
-  const progress = engagement.currentStage / engagement.totalStages;
-  const currentStageName = engagement.stages.find(s => s.status === 'current')?.name
-    || `Stage ${engagement.currentStage}`;
-
-  return (
-    <LinearGradient
-      colors={isBuy ? ['#1e1b4b', '#312e81'] : ['#0f2e2b', '#134e4a']}
-      style={styles.banner}
-    >
-      <View style={styles.bannerRow}>
-        <View>
-          <Text style={styles.bannerLabel}>{isBuy ? 'Buy Journey' : 'Sell Journey'}</Text>
-          <Text style={styles.bannerStage}>Stage {engagement.currentStage} · {currentStageName}</Text>
-        </View>
-        <View style={[styles.bannerBadge, { backgroundColor: color + '33', borderColor: color }]}>
-          <Text style={[styles.bannerBadgeText, { color }]}>
-            {engagement.currentStage}/{engagement.totalStages}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: color }]} />
-      </View>
-    </LinearGradient>
-  );
-}
-
-// ── Property card ─────────────────────────────────────────────────────────────
-const PROP_IMAGES = [
-  'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600',
-  'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600',
-  'https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=600',
-  'https://images.unsplash.com/photo-1523217582562-09d0def993a6?w=600',
-  'https://images.unsplash.com/photo-1554995207-c18c203602cb?w=600',
+// Unsplash property images (same palette as desktop)
+const PROPERTY_IMAGES = [
+  'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&q=80',
+  'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&q=80',
+  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80',
+  'https://images.unsplash.com/photo-1523217582562-09d0def993a6?w=600&q=80',
 ];
 
-function PropertyCard({ property, index }: { property: Property; index: number }) {
-  const nav = useNavigation<any>();
-  const equityPct = property.currentValue > 0 ? property.equity / property.currentValue : 0;
-  const imgUrl = PROP_IMAGES[index % PROP_IMAGES.length];
+function fmt(n: number) { return '$' + n.toLocaleString(); }
 
+// ── Stats strip ──────────────────────────────────────────────────────────────
+function NetWorthStrip({ properties }: { properties: Property[] }) {
+  const C = useColors();
+  const totalValue  = properties.reduce((s, p) => s + p.currentValue, 0);
+  const totalEquity = properties.reduce((s, p) => s + p.equity, 0);
+  const totalDebt   = properties.reduce((s, p) => s + p.mortgageBalance, 0);
   return (
-    <TouchableOpacity
-      style={styles.propCard}
-      onPress={() => nav.navigate('PropertyDetail', { property: { ...property, imageUrl: imgUrl } })}
-      activeOpacity={0.85}
-    >
-      {/* Color band instead of image for speed */}
-      <LinearGradient colors={['#1e3a5f', '#2563eb']} style={styles.propBand}>
-        <Ionicons name="home-outline" size={32} color="rgba(255,255,255,0.4)" />
-      </LinearGradient>
-      <View style={styles.propBody}>
-        <Text style={Typography.h3}>{property.address}</Text>
-        <Text style={Typography.sm}>{property.city}, {property.state}</Text>
-        <View style={styles.propStats}>
-          <Text style={styles.propValue}>{fmt(property.currentValue)}</Text>
-          <Text style={styles.propEquity}>Equity: {fmt(property.equity)}</Text>
+    <View style={[styles.strip, { backgroundColor: C.bgSurface, borderBottomColor: C.bgBorder }]}>
+      {[
+        { label: 'Portfolio Value', value: fmt(totalValue),  color: C.primary },
+        { label: 'Total Equity',    value: fmt(totalEquity), color: C.success },
+        { label: 'Total Debt',      value: fmt(totalDebt),   color: C.danger  },
+      ].map((s, i) => (
+        <View key={i} style={[styles.stripCell, i < 2 && { borderRightWidth: 1, borderRightColor: C.bgBorder }]}>
+          <Text style={[styles.stripValue, { color: s.color }]}>{s.value}</Text>
+          <Text style={[Typography.xs, { color: C.textMuted }]}>{s.label}</Text>
         </View>
-        <View style={styles.equityTrack}>
-          <View style={[styles.equityFill, { width: `${equityPct * 100}%` }]} />
-        </View>
-        <Text style={styles.equityLabel}>{(equityPct * 100).toFixed(0)}% equity</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-// ── Task list ─────────────────────────────────────────────────────────────────
-function TaskList({ tasks, propertyId, onToggle }: {
-  tasks: Task[];
-  propertyId: string;
-  onToggle: (taskId: string, done: boolean) => void;
-}) {
-  const priorityColor: Record<string, string> = { high: Colors.danger, medium: Colors.warning, low: Colors.success };
-  const pending = tasks.filter(t => !t.completed).slice(0, 4);
-  if (pending.length === 0) return null;
-
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Tasks</Text>
-      {pending.map(task => (
-        <TouchableOpacity
-          key={task.id}
-          style={styles.taskRow}
-          onPress={() => onToggle(task.id, !task.completed)}
-        >
-          <View style={[styles.taskDot, { backgroundColor: priorityColor[task.priority] }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.taskTitle}>{task.title}</Text>
-            {task.dueDate ? <Text style={Typography.xs}>Due {task.dueDate}</Text> : null}
-          </View>
-          <Ionicons name="ellipse-outline" size={20} color={Colors.textMuted} />
-        </TouchableOpacity>
       ))}
     </View>
   );
 }
 
-// ── Main screen ───────────────────────────────────────────────────────────────
+// ── Property card (vertical, full width) ────────────────────────────────────
+function PropertyCard({ property, index, onPress }: {
+  property: Property; index: number; onPress: () => void;
+}) {
+  const C = useColors();
+  const imgUrl = property.imageUrl || PROPERTY_IMAGES[index % PROPERTY_IMAGES.length];
+  const equityPct = property.currentValue > 0
+    ? Math.round((property.equity / property.currentValue) * 100) : 0;
+
+  return (
+    <TouchableOpacity
+      style={[styles.propCard, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <Image source={{ uri: imgUrl }} style={styles.propImg} resizeMode="cover" />
+      <View style={styles.propBody}>
+        <Text style={[styles.propAddress, { color: C.textPrimary }]} numberOfLines={1}>
+          {property.address}
+        </Text>
+        <Text style={[Typography.xs, { color: C.textMuted, marginBottom: Spacing.sm }]}>
+          {property.city}, {property.state} · {property.beds ? `${property.beds}bd/${property.baths}ba` : ''}
+        </Text>
+        <View style={styles.propStats}>
+          <View style={styles.propStat}>
+            <Text style={[styles.propStatValue, { color: C.primary }]}>{fmt(property.currentValue)}</Text>
+            <Text style={[Typography.xs, { color: C.textMuted }]}>Est. Value</Text>
+          </View>
+          <View style={styles.propStat}>
+            <Text style={[styles.propStatValue, { color: C.success }]}>{fmt(property.equity)}</Text>
+            <Text style={[Typography.xs, { color: C.textMuted }]}>Equity ({equityPct}%)</Text>
+          </View>
+          <View style={styles.propStat}>
+            <Text style={[styles.propStatValue, { color: C.danger }]}>{fmt(property.mortgageBalance)}</Text>
+            <Text style={[Typography.xs, { color: C.textMuted }]}>Mortgage</Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ── My Next Home card ────────────────────────────────────────────────────────
+function NextHomeCard({ engagement }: { engagement?: Engagement }) {
+  const C = useColors();
+  const done  = engagement?.stages.filter(s => s.status === 'done').length ?? 0;
+  const total = engagement?.totalStages ?? 0;
+  const pct   = total > 0 ? (done / total) * 100 : 0;
+  const currentStage = engagement?.stages.find(s => s.status === 'current');
+
+  return (
+    <View style={[styles.propCard, { backgroundColor: C.bgSurface, borderColor: C.buy + '55', borderWidth: 1.5 }]}>
+      {/* Real image for My Next Home */}
+      <View style={{ position: 'relative' }}>
+        <Image
+          source={{ uri: 'https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=600&q=80' }}
+          style={styles.propImg}
+          resizeMode="cover"
+        />
+        <View style={[styles.nextHomeBadge, { backgroundColor: C.buy }]}>
+          <Text style={styles.nextHomeBadgeText}>MY NEXT HOME</Text>
+        </View>
+      </View>
+      <View style={styles.propBody}>
+        {engagement ? (
+          <>
+            <Text style={[styles.propAddress, { color: C.textPrimary }]}>Buy Journey Active</Text>
+            <Text style={[Typography.xs, { color: C.textMuted, marginBottom: Spacing.sm }]}>
+              {currentStage?.name ?? `Stage ${engagement.currentStage} of ${total}`}
+            </Text>
+            <View style={[styles.progressTrack, { backgroundColor: C.bgBorder }]}>
+              <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: C.buy }]} />
+            </View>
+            <Text style={[Typography.xs, { color: C.textMuted, marginTop: 4 }]}>
+              {done} of {total} stages complete
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.propAddress, { color: C.textPrimary }]}>Start Your Home Search</Text>
+            <Text style={[Typography.xs, { color: C.textMuted }]}>
+              Connect with a broker to begin your buying journey
+            </Text>
+          </>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ── Main screen ──────────────────────────────────────────────────────────────
 export default function DashboardScreen() {
-  const { user } = useAuth();
-  const [properties, setProperties]   = useState<Property[]>([]);
+  const C   = useColors();
+  const nav = useNavigation<any>();
+
+  const [properties,  setProperties]  = useState<Property[]>([]);
   const [engagements, setEngagements] = useState<Engagement[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [refreshing, setRefreshing]   = useState(false);
-  const [error, setError]             = useState('');
+  const [loading,     setLoading]     = useState(true);
+  const [refreshing,  setRefreshing]  = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [props, engs] = await Promise.all([api.properties.list(), api.engagements.list()]);
+      setError(null);
+      const [props, engs] = await Promise.all([
+        api.properties.list(),
+        api.engagements.list(),
+      ]);
       setProperties(props);
       setEngagements(engs.filter(e => e.status === 'active'));
-      setError('');
     } catch (e: any) {
-      setError(e.message || 'Could not load data');
+      setError(e.message || 'Failed to load');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -164,102 +162,88 @@ export default function DashboardScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleToggleTask = async (propertyId: string, taskId: string, done: boolean) => {
-    try {
-      await api.properties.tasks.update(propertyId, taskId, done ? 'done' : 'pending');
-      setProperties(prev => prev.map(p =>
-        p.id === propertyId
-          ? { ...p, tasks: (p.tasks || []).map(t => t.id === taskId ? { ...t, completed: done } : t) }
-          : p
-      ));
-    } catch { /* silent */ }
-  };
+  const buyEngagement = engagements.find(e => e.type === 'buy');
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={[styles.centered, { backgroundColor: C.bgBase }]}>
+        <ActivityIndicator size="large" color={C.primary} />
       </View>
     );
   }
 
   return (
     <ScrollView
-      style={styles.screen}
-      contentContainerStyle={{ paddingBottom: 32 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.primary} />}
+      style={[styles.screen, { backgroundColor: C.bgBase }]}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.primary} />
+      }
     >
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
+      {error && (
+        <View style={[styles.errorBanner, { backgroundColor: C.danger + '22', borderColor: C.danger }]}>
+          <Ionicons name="warning-outline" size={16} color={C.danger} />
+          <Text style={[styles.errorText, { color: C.danger }]}>{error}</Text>
         </View>
-      ) : null}
+      )}
 
       <NetWorthStrip properties={properties} />
 
-      {engagements.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Active Journeys</Text>
-          {engagements.map(e => <JourneyBanner key={e.id} engagement={e} />)}
-        </View>
-      )}
+      <View style={styles.listPad}>
+        {/* My properties */}
+        <Text style={[styles.sectionTitle, { color: C.textMuted }]}>My Properties</Text>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>My Properties</Text>
-        {properties.length === 0
-          ? <Text style={[Typography.sm, { padding: Spacing.md }]}>No properties yet.</Text>
-          : properties.map((p, i) => <PropertyCard key={p.id} property={p} index={i} />)
-        }
+        {properties.length === 0 ? (
+          <View style={[styles.empty, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+            <Ionicons name="home-outline" size={36} color={C.bgBorder2} />
+            <Text style={[Typography.sm, { color: C.textMuted, marginTop: Spacing.sm }]}>No properties yet.</Text>
+          </View>
+        ) : (
+          properties.map((p, i) => (
+            <PropertyCard
+              key={p.id}
+              property={p}
+              index={i}
+              onPress={() => nav.navigate('PropertyDetail', { property: p })}
+            />
+          ))
+        )}
+
+        {/* My Next Home */}
+        <Text style={[styles.sectionTitle, { color: C.textMuted, marginTop: Spacing.lg }]}>My Next Home</Text>
+        <NextHomeCard engagement={buyEngagement} />
       </View>
-
-      {properties.map(p =>
-        (p.tasks || []).length > 0 ? (
-          <TaskList
-            key={p.id}
-            tasks={p.tasks!}
-            propertyId={p.id}
-            onToggle={(taskId, done) => handleToggleTask(p.id, taskId, done)}
-          />
-        ) : null
-      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen:    { flex: 1, backgroundColor: Colors.bgBase },
-  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgBase },
-  errorBanner: { backgroundColor: '#450a0a', margin: Spacing.md, borderRadius: Radius.sm, padding: Spacing.md, borderWidth: 1, borderColor: Colors.danger },
-  errorText: { color: '#fca5a5', fontSize: 13 },
+  screen:   { flex: 1 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: Spacing.md, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1 },
+  errorText:   { fontSize: 13, flex: 1 },
 
-  section:      { paddingHorizontal: Spacing.md, paddingTop: Spacing.lg },
-  sectionTitle: { ...Typography.h3, marginBottom: Spacing.sm, color: Colors.textSecondary, textTransform: 'uppercase', fontSize: 12, letterSpacing: 1 },
+  strip:     { flexDirection: 'row', borderBottomWidth: 1 },
+  stripCell: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md },
+  stripValue:{ fontSize: 16, fontWeight: '700', marginBottom: 2 },
 
-  strip:        { flexDirection: 'row', paddingVertical: Spacing.md, borderBottomWidth: 1, borderColor: Colors.bgBorder },
-  stripCell:    { flex: 1, alignItems: 'center' },
-  stripDivider: { borderRightWidth: 1, borderColor: Colors.bgBorder },
-  stripValue:   { fontSize: 20, fontWeight: '700', marginBottom: 2 },
+  listPad:      { padding: Spacing.md },
+  sectionTitle: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: Spacing.sm },
 
-  banner:         { borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.bgBorder },
-  bannerRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  bannerLabel:    { color: Colors.textSecondary, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 },
-  bannerStage:    { color: Colors.textPrimary, fontSize: 15, fontWeight: '600' },
-  bannerBadge:    { borderWidth: 1, borderRadius: Radius.full, paddingHorizontal: 10, paddingVertical: 4 },
-  bannerBadgeText:{ fontSize: 12, fontWeight: '700' },
-  progressTrack:  { height: 4, backgroundColor: Colors.bgBorder, borderRadius: 2 },
-  progressFill:   { height: 4, borderRadius: 2 },
+  propCard:  { borderRadius: Radius.lg, overflow: 'hidden', borderWidth: 1, marginBottom: Spacing.md },
+  propImg:   { width: '100%', height: 140 },
+  propBody:  { padding: Spacing.md },
+  propAddress: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  propStats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.xs },
+  propStat:  { alignItems: 'center' },
+  propStatValue: { fontSize: 14, fontWeight: '700' },
 
-  propCard:    { backgroundColor: Colors.bgSurface, borderRadius: Radius.lg, marginBottom: Spacing.md, overflow: 'hidden', borderWidth: 1, borderColor: Colors.bgBorder },
-  propBand:    { width: '100%', height: 80, alignItems: 'center', justifyContent: 'center' },
-  propBody:    { padding: Spacing.md },
-  propStats:   { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.sm, marginBottom: Spacing.xs },
-  propValue:   { color: Colors.textPrimary, fontSize: 17, fontWeight: '700' },
-  propEquity:  { color: Colors.success, fontSize: 14, fontWeight: '600' },
-  equityTrack: { height: 4, backgroundColor: Colors.bgBorder, borderRadius: 2, marginBottom: 4 },
-  equityFill:  { height: 4, borderRadius: 2, backgroundColor: Colors.success },
-  equityLabel: { color: Colors.textMuted, fontSize: 11 },
+  nextHomeImg:   { backgroundColor: '#1a3a5c', alignItems: 'center', justifyContent: 'center' },
+  nextHomeBadge: { position: 'absolute', top: 10, left: 10, borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 3 },
+  nextHomeBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
 
-  taskRow:   { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.bgSurface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs, borderWidth: 1, borderColor: Colors.bgBorder },
-  taskDot:   { width: 8, height: 8, borderRadius: 4, marginRight: Spacing.md },
-  taskTitle: { color: Colors.textPrimary, fontSize: 14, marginBottom: 2 },
+  progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  progressFill:  { height: 6, borderRadius: 3 },
+
+  empty: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.xl, alignItems: 'center' },
 });

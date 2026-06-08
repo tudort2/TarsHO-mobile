@@ -1,6 +1,6 @@
 import { Property, Contact, ContactStatus, ContactType, Engagement, Task } from '../types';
 
-const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://your-app.up.railway.app').replace(/\/$/, '');
+const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://tarsho-production.up.railway.app').replace(/\/$/, '');
 
 // Module-level token — set by AuthContext after login
 let _token: string | null = null;
@@ -35,9 +35,12 @@ function normalizeStatus(s: string): ContactStatus {
 
 function normalizeContactType(t: string): ContactType {
   switch (t?.toLowerCase()) {
-    case 'seller': return 'Seller';
-    case 'both':   return 'Both';
-    default:       return 'Buyer';
+    case 'seller':   return 'Seller';
+    case 'both':     return 'Both';
+    case 'broker':   return 'Broker';
+    case 'provider': return 'Provider';
+    case 'personal': return 'Personal';
+    default:         return 'Buyer';
   }
 }
 

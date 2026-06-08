@@ -3,59 +3,36 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Activ
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Colors, Spacing, Radius, Typography } from '../../theme';
+import { useColors } from '../../context/ThemeContext';
+import { Spacing, Radius, Typography } from '../../theme';
 import { Property, Task } from '../../types';
 import { api } from '../../api/client';
 
 const { width } = Dimensions.get('window');
-
-function fmt(n: number) { return `$${n.toLocaleString()}`; }
-
-function StatCell({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statCell}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={Typography.label}>{label}</Text>
-    </View>
-  );
-}
-
-function TaskRow({ task, onToggle }: { task: Task; onToggle: () => void }) {
-  const priorityColor: Record<string, string> = { high: Colors.danger, medium: Colors.warning, low: Colors.success };
-  return (
-    <TouchableOpacity style={styles.taskRow} onPress={onToggle}>
-      <View style={[styles.taskDot, { backgroundColor: priorityColor[task.priority] }]} />
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.taskTitle, task.completed && styles.taskDone]}>{task.title}</Text>
-        {task.dueDate && <Text style={Typography.xs}>Due {task.dueDate}</Text>}
-      </View>
-      <Ionicons name={task.completed ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={task.completed ? Colors.success : Colors.textMuted} />
-    </TouchableOpacity>
-  );
-}
+function fmt(n: number) { return '$' + n.toLocaleString(); }
 
 export default function PropertyDetailScreen() {
-  const nav   = useNavigation();
+  const C    = useColors();
+  const nav  = useNavigation();
   const route = useRoute<any>();
   const property: Property = route.params?.property;
 
   const [tasks, setTasks]     = useState<Task[]>(property?.tasks || []);
   const [loading, setLoading] = useState(false);
 
-  // Fetch tasks if not passed
   useEffect(() => {
     if (property && (!property.tasks || property.tasks.length === 0)) {
       setLoading(true);
       api.properties.tasks.list(property.id)
-        .then(setTasks)
-        .catch(() => {})
-        .finally(() => setLoading(false));
+        .then(setTasks).catch(() => {}).finally(() => setLoading(false));
     }
   }, [property?.id]);
 
   const toggleTask = async (task: Task) => {
     try {
-      const updated = await api.properties.tasks.update(property.id, task.id, task.completed ? 'pending' : 'done');
+      const updated = await api.properties.tasks.update(
+        property.id, task.id, task.completed ? 'pending' : 'done'
+      );
       setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
     } catch { /* silent */ }
   };
@@ -67,8 +44,7 @@ export default function PropertyDetailScreen() {
   const equityPct       = property.currentValue > 0 ? (property.equity / property.currentValue) * 100 : 0;
 
   return (
-    <View style={styles.screen}>
-      {/* Hero band */}
+    <View style={[styles.screen, { backgroundColor: C.bgBase }]}>
       <LinearGradient colors={['#1e3a5f', '#1d4ed8']} style={styles.heroBand}>
         <TouchableOpacity style={styles.backBtn} onPress={() => nav.goBack()}>
           <Ionicons name="chevron-back" size={22} color="#fff" />
@@ -77,54 +53,58 @@ export default function PropertyDetailScreen() {
       </LinearGradient>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Address */}
-        <View style={styles.addrSection}>
-          <Text style={Typography.h1}>{property.address}</Text>
-          <Text style={Typography.sm}>{property.city}, {property.state} {property.zip}</Text>
+        <View style={[styles.addrSection, { borderBottomColor: C.bgBorder }]}>
+          <Text style={[Typography.h1, { color: C.textPrimary }]}>{property.address}</Text>
+          <Text style={[Typography.sm, { color: C.textMuted }]}>{property.city}, {property.state} {property.zip}</Text>
         </View>
 
         {/* Stats grid */}
         <View style={styles.statsGrid}>
-          <StatCell label="Current Value"  value={fmt(property.currentValue)} />
-          <StatCell label="Equity"         value={fmt(property.equity)} />
-          <StatCell label="Sqft"           value={property.sqft ? property.sqft.toLocaleString() : '—'} />
-          <StatCell label="Beds/Baths"     value={property.beds ? `${property.beds}bd/${property.baths}ba` : '—'} />
-          <StatCell label="Year Built"     value={property.yearBuilt ? `${property.yearBuilt}` : '—'} />
-          <StatCell label="Appreciation"   value={property.purchasePrice ? `+${appreciationPct.toFixed(1)}%` : '—'} />
+          {[
+            { label: 'Current Value',  value: fmt(property.currentValue) },
+            { label: 'Equity',         value: fmt(property.equity) },
+            { label: 'Sqft',           value: property.sqft ? property.sqft.toLocaleString() : '—' },
+            { label: 'Beds/Baths',     value: property.beds ? `${property.beds}bd/${property.baths}ba` : '—' },
+            { label: 'Year Built',     value: property.yearBuilt ? `${property.yearBuilt}` : '—' },
+            { label: 'Appreciation',   value: property.purchasePrice ? `+${appreciationPct.toFixed(1)}%` : '—' },
+          ].map((s, i) => (
+            <View key={i} style={[styles.statCell, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+              <Text style={[styles.statValue, { color: C.primary }]}>{s.value}</Text>
+              <Text style={[Typography.xs, { color: C.textMuted }]}>{s.label}</Text>
+            </View>
+          ))}
         </View>
 
         {/* AVM range */}
         {property.avmLow && property.avmHigh && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Valuation Range</Text>
-            <View style={styles.avmCard}>
-              <Text style={styles.avmText}>
-                {fmt(property.avmLow)} – {fmt(property.avmHigh)}
-              </Text>
-              <Text style={[Typography.xs, { marginTop: 4 }]}>Quantarium AVM estimate</Text>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Valuation Range</Text>
+            <View style={[styles.card, { backgroundColor: C.bgSurface, borderColor: C.bgBorder, alignItems: 'center' }]}>
+              <Text style={[styles.avmText, { color: C.primary }]}>{fmt(property.avmLow)} – {fmt(property.avmHigh)}</Text>
+              <Text style={[Typography.xs, { color: C.textMuted, marginTop: 4 }]}>Quantarium AVM estimate</Text>
             </View>
           </View>
         )}
 
         {/* Equity bar */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Equity Breakdown</Text>
-          <View style={styles.equityCard}>
-            <View style={styles.equityRow}>
-              <Text style={Typography.body}>Equity</Text>
-              <Text style={{ color: Colors.success, fontWeight: '700' }}>{fmt(property.equity)} ({equityPct.toFixed(0)}%)</Text>
+          <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Equity Breakdown</Text>
+          <View style={[styles.card, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+            <View style={styles.row}>
+              <Text style={[Typography.body, { color: C.textPrimary }]}>Equity</Text>
+              <Text style={{ color: C.success, fontWeight: '700' }}>{fmt(property.equity)} ({equityPct.toFixed(0)}%)</Text>
             </View>
-            <View style={styles.equityTrack}>
-              <View style={[styles.equityFill, { width: `${Math.min(equityPct, 100)}%` }]} />
+            <View style={[styles.track, { backgroundColor: C.bgBorder }]}>
+              <View style={[styles.fill, { width: `${Math.min(equityPct, 100)}%`, backgroundColor: C.success }]} />
             </View>
-            <View style={styles.equityLegend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: Colors.success }]} />
-                <Text style={Typography.xs}>Equity {fmt(property.equity)}</Text>
+            <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={[styles.dot, { backgroundColor: C.success }]} />
+                <Text style={[Typography.xs, { color: C.textMuted }]}>Equity {fmt(property.equity)}</Text>
               </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: Colors.danger }]} />
-                <Text style={Typography.xs}>Mortgage {fmt(property.mortgageBalance)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={[styles.dot, { backgroundColor: C.danger }]} />
+                <Text style={[Typography.xs, { color: C.textMuted }]}>Mortgage {fmt(property.mortgageBalance)}</Text>
               </View>
             </View>
           </View>
@@ -133,40 +113,53 @@ export default function PropertyDetailScreen() {
         {/* Mortgage */}
         {property.purchasePrice > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Mortgage</Text>
-            <View style={styles.mortgageCard}>
-              <View style={styles.mortRow}>
-                <Text style={Typography.sm}>Purchase Price</Text>
-                <Text style={Typography.body}>{fmt(property.purchasePrice)}</Text>
-              </View>
-              <View style={styles.mortRow}>
-                <Text style={Typography.sm}>Current Balance</Text>
-                <Text style={[Typography.body, { color: Colors.danger }]}>{fmt(property.mortgageBalance)}</Text>
-              </View>
-              {property.mortgageRate && (
-                <View style={styles.mortRow}>
-                  <Text style={Typography.sm}>Rate</Text>
-                  <Text style={Typography.body}>{property.mortgageRate}%</Text>
+            <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Mortgage</Text>
+            <View style={[styles.card, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+              {[
+                { label: 'Purchase Price',  value: fmt(property.purchasePrice),    color: C.textPrimary },
+                { label: 'Current Balance', value: fmt(property.mortgageBalance),   color: C.danger },
+                ...(property.mortgageRate ? [{ label: 'Rate', value: `${property.mortgageRate}%`, color: C.textPrimary }] : []),
+                { label: 'Appreciation',   value: `+${fmt(appreciation)} (+${appreciationPct.toFixed(1)}%)`, color: C.success },
+              ].map((item, i, arr) => (
+                <View key={i} style={[styles.row, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.bgBorder }]}>
+                  <Text style={[Typography.sm, { color: C.textSecondary }]}>{item.label}</Text>
+                  <Text style={{ color: item.color, fontWeight: '600' }}>{item.value}</Text>
                 </View>
-              )}
-              {property.purchasePrice > 0 && (
-                <View style={styles.mortRow}>
-                  <Text style={Typography.sm}>Appreciation</Text>
-                  <Text style={[Typography.body, { color: Colors.success }]}>+{fmt(appreciation)} (+{appreciationPct.toFixed(1)}%)</Text>
-                </View>
-              )}
+              ))}
             </View>
           </View>
         )}
 
         {/* Tasks */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tasks</Text>
+          <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Tasks</Text>
           {loading
-            ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 16 }} />
+            ? <ActivityIndicator color={C.primary} style={{ marginTop: 16 }} />
             : tasks.length === 0
-              ? <Text style={[Typography.sm, { marginTop: 8 }]}>No tasks yet.</Text>
-              : tasks.map(t => <TaskRow key={t.id} task={t} onToggle={() => toggleTask(t)} />)
+              ? <Text style={[Typography.sm, { color: C.textMuted, marginTop: 8 }]}>No tasks yet.</Text>
+              : tasks.map(t => {
+                  const priorityColor: Record<string, string> = { high: C.danger, medium: C.warning, low: C.success };
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      style={[styles.taskRow, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}
+                      onPress={() => toggleTask(t)}
+                    >
+                      <View style={[styles.taskDot, { backgroundColor: priorityColor[t.priority] }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.taskTitle, { color: C.textPrimary }, t.completed && { color: C.textMuted, textDecorationLine: 'line-through' }]}>
+                          {t.title}
+                        </Text>
+                        {t.dueDate && <Text style={[Typography.xs, { color: C.textMuted }]}>Due {t.dueDate}</Text>}
+                      </View>
+                      <Ionicons
+                        name={t.completed ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={20}
+                        color={t.completed ? C.success : C.textMuted}
+                      />
+                    </TouchableOpacity>
+                  );
+                })
           }
         </View>
       </ScrollView>
@@ -175,28 +168,22 @@ export default function PropertyDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen:      { flex: 1, backgroundColor: Colors.bgBase },
+  screen:      { flex: 1 },
   heroBand:    { width, height: 160, alignItems: 'center', justifyContent: 'center' },
   backBtn:     { position: 'absolute', top: 48, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
-  addrSection: { padding: Spacing.md, borderBottomWidth: 1, borderColor: Colors.bgBorder },
+  addrSection: { padding: Spacing.md, borderBottomWidth: 1 },
   statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', padding: Spacing.md, gap: Spacing.sm },
-  statCell:    { width: '30%', backgroundColor: Colors.bgSurface, borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: Colors.bgBorder, flex: 1, minWidth: '30%' },
-  statValue:   { color: Colors.primary, fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  statCell:    { flex: 1, minWidth: '30%', borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center', borderWidth: 1 },
+  statValue:   { fontSize: 16, fontWeight: '700', marginBottom: 2 },
   section:     { paddingHorizontal: Spacing.md, paddingTop: Spacing.lg },
-  sectionTitle:{ ...Typography.label, marginBottom: Spacing.sm },
-  avmCard:     { backgroundColor: Colors.bgSurface, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.bgBorder, alignItems: 'center' },
-  avmText:     { color: Colors.primary, fontSize: 18, fontWeight: '700' },
-  equityCard:  { backgroundColor: Colors.bgSurface, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.bgBorder },
-  equityRow:   { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
-  equityTrack: { height: 8, backgroundColor: Colors.bgBorder, borderRadius: 4, marginBottom: Spacing.sm },
-  equityFill:  { height: 8, borderRadius: 4, backgroundColor: Colors.success },
-  equityLegend:{ flexDirection: 'row', gap: Spacing.md },
-  legendItem:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot:   { width: 8, height: 8, borderRadius: 4 },
-  mortgageCard:{ backgroundColor: Colors.bgSurface, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.bgBorder },
-  mortRow:     { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderColor: Colors.bgBorder },
-  taskRow:     { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.bgSurface, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs, borderWidth: 1, borderColor: Colors.bgBorder },
+  sectionTitle:{ fontSize: 11, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: Spacing.sm },
+  card:        { borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1 },
+  avmText:     { fontSize: 18, fontWeight: '700' },
+  row:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm },
+  track:       { height: 8, borderRadius: 4, marginVertical: Spacing.sm, overflow: 'hidden' },
+  fill:        { height: 8, borderRadius: 4 },
+  dot:         { width: 8, height: 8, borderRadius: 4 },
+  taskRow:     { flexDirection: 'row', alignItems: 'center', borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs, borderWidth: 1 },
   taskDot:     { width: 8, height: 8, borderRadius: 4, marginRight: Spacing.md },
-  taskTitle:   { color: Colors.textPrimary, fontSize: 14, marginBottom: 2 },
-  taskDone:    { color: Colors.textMuted, textDecorationLine: 'line-through' },
+  taskTitle:   { fontSize: 14, marginBottom: 2 },
 });

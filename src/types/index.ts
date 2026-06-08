@@ -57,8 +57,14 @@ export interface Task {
   completed: boolean;
 }
 
+// Broker contact types
+export type BrokerContactType = 'Buyer' | 'Seller' | 'Both';
+// Homeowner contact types
+export type HomeownerContactType = 'Broker' | 'Provider' | 'Personal';
+// Union for all roles
+export type ContactType = BrokerContactType | HomeownerContactType;
+
 export type ContactStatus = 'Active' | 'Passive' | 'Lead' | 'Non-Client';
-export type ContactType = 'Buyer' | 'Seller' | 'Both';
 
 export interface Contact {
   id: string;

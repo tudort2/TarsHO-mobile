@@ -1,207 +1,445 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Linking, StyleSheet,
-  ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, Linking, TextInput,
+  Modal, Pressable, KeyboardAvoidingView, Platform,
+  StyleSheet, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Colors, Spacing, Radius, Typography } from '../../theme';
-import { Contact } from '../../types';
+import { getInitials } from '../../utils/initials';
+import { useColors } from '../../context/ThemeContext';
+import { Spacing, Radius, Typography } from '../../theme';
+import { Contact, BrokerContactType, ContactStatus } from '../../types';
 import { api } from '../../api/client';
 
-function fmt(n: number) { return `$${(n / 1000).toFixed(0)}K`; }
+function fmt(n: number) { return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'K' : n); }
 
-function Initials({ name }: { name: string }) {
-  const parts = name.trim().split(' ');
-  const ini = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+// ── Edit Broker Contact Modal ─────────────────────────────────────────────────
+function EditBrokerModal({ contact, visible, onClose, onSaved }: {
+  contact: Contact | null; visible: boolean;
+  onClose: () => void; onSaved: (u: Contact) => void;
+}) {
+  const C = useColors();
+  const [firstName, setFirstName] = useState('');
+  const [lastName,  setLastName]  = useState('');
+  const [phone,     setPhone]     = useState('');
+  const [email,     setEmail]     = useState('');
+  const [type,      setType]      = useState<BrokerContactType>('Buyer');
+  const [status,    setStatus]    = useState<ContactStatus>('Active');
+  const [minBudget, setMinBudget] = useState('');
+  const [maxBudget, setMaxBudget] = useState('');
+  const [city,      setCity]      = useState('');
+  const [beds,      setBeds]      = useState('');
+  const [minSqft,   setMinSqft]   = useState('');
+  const [maxSqft,   setMaxSqft]   = useState('');
+  const [timing,    setTiming]    = useState('');
+  const [notes,     setNotes]     = useState('');
+  const [saving,    setSaving]    = useState(false);
+
+  useEffect(() => {
+    if (contact && visible) {
+      const parts = contact.name.trim().split(' ');
+      setFirstName(parts[0] || '');
+      setLastName(parts.slice(1).join(' ') || '');
+      setPhone(contact.phone || '');
+      setEmail(contact.email || '');
+      setType((contact.type as BrokerContactType) || 'Buyer');
+      setStatus(contact.status || 'Active');
+      setNotes(contact.notes || '');
+      const dp = contact.desiredProperty;
+      if (dp) {
+        setMinBudget(dp.minBudget ? String(dp.minBudget) : '');
+        setMaxBudget(dp.maxBudget ? String(dp.maxBudget) : '');
+        setCity(dp.city || '');
+        setBeds(dp.beds ? String(dp.beds) : '');
+        setMinSqft(dp.minSqft ? String(dp.minSqft) : '');
+        setMaxSqft(dp.maxSqft ? String(dp.maxSqft) : '');
+        setTiming(dp.timing || '');
+      }
+    }
+  }, [contact, visible]);
+
+  const save = async () => {
+    if (!contact || !firstName.trim()) { Alert.alert('First name is required'); return; }
+    setSaving(true);
+    try {
+      const u = await api.contacts.update(contact.id, {
+        firstName: firstName.trim(), lastName: lastName.trim(),
+        phone: phone.trim(), email: email.trim(), notes: notes.trim(),
+        type, status,
+        desiredProperty: {
+          minBudget: parseInt(minBudget) || 0, maxBudget: parseInt(maxBudget) || 0,
+          city: city.trim(), beds: parseInt(beds) || 0,
+          minSqft: parseInt(minSqft) || 0, maxSqft: parseInt(maxSqft) || 0,
+          timing: timing.trim(),
+        },
+      });
+      onSaved(u);
+    } catch (e: any) { Alert.alert('Error', e.message || 'Could not save.'); }
+    finally { setSaving(false); }
+  };
+
+  if (!contact) return null;
+
+  const TYPES: BrokerContactType[] = ['Buyer', 'Seller', 'Both'];
+  const STATUSES: ContactStatus[]  = ['Active', 'Lead', 'Passive', 'Non-Client'];
+  const typeColor   = (t: string) => t === 'Buyer' ? C.buy : t === 'Seller' ? C.sell : C.primary;
+  const statusColor = (st: string) => ({ Active: C.success, Lead: C.primary, Passive: C.warning, 'Non-Client': C.textMuted } as any)[st] ?? C.textMuted;
+
   return (
-    <View style={styles.avatarFallback}>
-      <Text style={styles.avatarInitial}>{ini.toUpperCase()}</Text>
-    </View>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Backdrop — only fills space above the sheet */}
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+
+        {/* Sheet — sits at the bottom, NOT absolutely positioned */}
+        <View style={[es.sheet, { backgroundColor: C.bgSurface, borderTopColor: C.bgBorder }]}>
+          <View style={[es.handle, { backgroundColor: C.bgBorder }]} />
+          <Text style={[es.title, { color: C.textPrimary }]}>Edit Contact</Text>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 24 }}
+          >
+            {/* Basic fields */}
+            {[
+              { label: 'First Name', value: firstName, set: setFirstName, ph: 'First name' },
+              { label: 'Last Name',  value: lastName,  set: setLastName,  ph: 'Last name' },
+              { label: 'Phone',      value: phone,     set: setPhone,     ph: '+1 (555) 000-0000' },
+              { label: 'Email',      value: email,     set: setEmail,     ph: 'email@example.com' },
+            ].map(f => (
+              <View key={f.label} style={{ marginBottom: Spacing.sm }}>
+                <Text style={[es.label, { color: C.textMuted }]}>{f.label}</Text>
+                <TextInput
+                  value={f.value}
+                  onChangeText={f.set}
+                  placeholder={f.ph}
+                  placeholderTextColor={C.textMuted}
+                  autoCorrect={false}
+                  autoCapitalize="words"
+                  style={[es.input, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]}
+                />
+              </View>
+            ))}
+
+            {/* Type chips */}
+            <Text style={[es.label, { color: C.textMuted }]}>Type</Text>
+            <View style={[es.chipRow, { marginBottom: Spacing.sm }]}>
+              {TYPES.map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={[es.chip, { borderColor: type === t ? typeColor(t) : C.bgBorder, backgroundColor: type === t ? typeColor(t) + '22' : C.bgElevated }]}
+                  onPress={() => setType(t)}
+                >
+                  <Text style={{ color: type === t ? typeColor(t) : C.textSecondary, fontSize: 13, fontWeight: '600' }}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Status chips */}
+            <Text style={[es.label, { color: C.textMuted }]}>Status</Text>
+            <View style={[es.chipRow, { marginBottom: Spacing.md }]}>
+              {STATUSES.map(st => (
+                <TouchableOpacity
+                  key={st}
+                  style={[es.chip, { borderColor: status === st ? statusColor(st) : C.bgBorder, backgroundColor: status === st ? statusColor(st) + '22' : C.bgElevated }]}
+                  onPress={() => setStatus(st)}
+                >
+                  <Text style={{ color: status === st ? statusColor(st) : C.textSecondary, fontSize: 13, fontWeight: '600' }}>{st}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Desired Property */}
+            <Text style={[es.sectionLabel, { color: C.textPrimary }]}>Desired Property</Text>
+            <View style={es.twoCol}>
+              <View style={{ flex: 1, marginRight: Spacing.xs }}>
+                <Text style={[es.label, { color: C.textMuted }]}>Min Budget ($)</Text>
+                <TextInput value={minBudget} onChangeText={setMinBudget} keyboardType="numeric" placeholder="300000"
+                  placeholderTextColor={C.textMuted}
+                  style={[es.input, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]} />
+              </View>
+              <View style={{ flex: 1, marginLeft: Spacing.xs }}>
+                <Text style={[es.label, { color: C.textMuted }]}>Max Budget ($)</Text>
+                <TextInput value={maxBudget} onChangeText={setMaxBudget} keyboardType="numeric" placeholder="600000"
+                  placeholderTextColor={C.textMuted}
+                  style={[es.input, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]} />
+              </View>
+            </View>
+            <View style={[es.twoCol, { marginTop: Spacing.xs }]}>
+              <View style={{ flex: 1, marginRight: Spacing.xs }}>
+                <Text style={[es.label, { color: C.textMuted }]}>Min Sqft</Text>
+                <TextInput value={minSqft} onChangeText={setMinSqft} keyboardType="numeric" placeholder="1000"
+                  placeholderTextColor={C.textMuted}
+                  style={[es.input, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]} />
+              </View>
+              <View style={{ flex: 1, marginLeft: Spacing.xs }}>
+                <Text style={[es.label, { color: C.textMuted }]}>Max Sqft</Text>
+                <TextInput value={maxSqft} onChangeText={setMaxSqft} keyboardType="numeric" placeholder="3000"
+                  placeholderTextColor={C.textMuted}
+                  style={[es.input, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]} />
+              </View>
+            </View>
+            <View style={[es.twoCol, { marginTop: Spacing.xs }]}>
+              <View style={{ flex: 1, marginRight: Spacing.xs }}>
+                <Text style={[es.label, { color: C.textMuted }]}>Beds (min)</Text>
+                <TextInput value={beds} onChangeText={setBeds} keyboardType="numeric" placeholder="2"
+                  placeholderTextColor={C.textMuted}
+                  style={[es.input, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]} />
+              </View>
+              <View style={{ flex: 1, marginLeft: Spacing.xs }}>
+                <Text style={[es.label, { color: C.textMuted }]}>City</Text>
+                <TextInput value={city} onChangeText={setCity} placeholder="Austin"
+                  placeholderTextColor={C.textMuted}
+                  style={[es.input, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]} />
+              </View>
+            </View>
+            <View style={{ marginTop: Spacing.xs, marginBottom: Spacing.sm }}>
+              <Text style={[es.label, { color: C.textMuted }]}>Timing</Text>
+              <TextInput value={timing} onChangeText={setTiming} placeholder="e.g. 3–6 months"
+                placeholderTextColor={C.textMuted}
+                style={[es.input, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]} />
+            </View>
+
+            {/* Notes */}
+            <Text style={[es.label, { color: C.textMuted }]}>Notes</Text>
+            <TextInput
+              value={notes} onChangeText={setNotes} multiline numberOfLines={3}
+              placeholder="Notes about this client..."
+              placeholderTextColor={C.textMuted}
+              style={[es.input, es.notesInput, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]}
+            />
+
+            <View style={es.btnRow}>
+              <TouchableOpacity
+                style={[es.cancelBtn, { backgroundColor: C.bgElevated, borderColor: C.bgBorder }]}
+                onPress={onClose}
+                disabled={saving}
+              >
+                <Text style={[es.cancelBtnText, { color: C.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[es.saveBtn, { backgroundColor: C.primary }]}
+                onPress={save}
+                disabled={saving}
+              >
+                {saving ? <ActivityIndicator color="#fff" /> : <Text style={es.saveBtnText}>Save Changes</Text>}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
+// ── Main screen ────────────────────────────────────────────────────────────────
 export default function ContactDetailScreen() {
+  const C     = useColors();
   const nav   = useNavigation();
   const route = useRoute<any>();
   const contactId: string = route.params?.contactId;
 
-  const [contact, setContact] = useState<Contact | null>(route.params?.contact || null);
-  const [loading, setLoading] = useState(!route.params?.contact);
+  const [contact,  setContact]  = useState<Contact | null>(route.params?.contact || null);
+  const [loading,  setLoading]  = useState(!route.params?.contact);
+  const [editOpen, setEditOpen] = useState(route.params?.openEdit === true);
 
   useEffect(() => {
-    if (!contactId && !contact) return;
     const id = contactId || contact?.id;
     if (!id) return;
-    api.contacts.get(id)
-      .then(setContact)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    api.contacts.get(id).then(setContact).catch(() => {}).finally(() => setLoading(false));
   }, [contactId]);
 
   if (loading || !contact) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color={Colors.primary} /></View>;
+    return <View style={[s.centered, { backgroundColor: C.bgBase }]}><ActivityIndicator size="large" color={C.primary} /></View>;
   }
 
+  const STATUS_COLOR: Record<string, string> = {
+    Active: C.success, Passive: C.warning, Lead: C.primary, 'Non-Client': C.textMuted,
+  };
+  const ini = getInitials(contact.name);
+  const sc  = STATUS_COLOR[contact.status] ?? C.primary;
+  const tc  = contact.type === 'Buyer' ? C.buy : contact.type === 'Seller' ? C.sell : C.primary;
+
   return (
-    <View style={styles.screen}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => nav.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={Colors.textPrimary} />
+    <View style={[s.screen, { backgroundColor: C.bgBase }]}>
+      {/* Header */}
+      <View style={[s.header, { backgroundColor: C.bgSurface, borderBottomColor: C.bgBorder }]}>
+        <TouchableOpacity style={s.iconBtn} onPress={() => nav.goBack()}>
+          <Ionicons name="chevron-back" size={22} color={C.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Contact</Text>
-        <View style={{ width: 36 }} />
+        <Text style={[s.headerTitle, { color: C.textPrimary }]}>Contact</Text>
+        <TouchableOpacity style={s.iconBtn} onPress={() => setEditOpen(true)}>
+          <Ionicons name="create-outline" size={20} color={C.primary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Profile card */}
-        <View style={styles.profileCard}>
-          <Initials name={contact.name} />
-          <Text style={Typography.h1}>{contact.name}</Text>
-          {contact.address ? <Text style={Typography.sm}>{contact.address}</Text> : null}
-          <View style={styles.badgeRow}>
-            <View style={[styles.badge, { backgroundColor: contact.type === 'Buyer' ? Colors.buy + '33' : Colors.sell + '33' }]}>
-              <Text style={[styles.badgeText, { color: contact.type === 'Buyer' ? Colors.buy : Colors.sell }]}>{contact.type}</Text>
+        {/* Hero */}
+        <View style={[s.hero, { backgroundColor: C.bgSurface, borderBottomColor: C.bgBorder }]}>
+          <View style={[s.avatar, { backgroundColor: sc + '22', borderColor: sc }]}>
+            <Text style={[s.avatarText, { color: sc }]}>{ini}</Text>
+          </View>
+          <Text style={[s.name, { color: C.textPrimary }]}>{contact.name}</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <View style={[s.chip, { backgroundColor: sc + '22', borderColor: sc }]}>
+              <Text style={[s.chipText, { color: sc }]}>{contact.status}</Text>
             </View>
-            <View style={[styles.badge, { backgroundColor: Colors.primary + '22' }]}>
-              <Text style={[styles.badgeText, { color: Colors.primary }]}>{contact.status}</Text>
+            <View style={[s.chip, { backgroundColor: tc + '22', borderColor: tc }]}>
+              <Text style={[s.chipText, { color: tc }]}>{contact.type}</Text>
             </View>
+          </View>
+          <View style={s.actionsRow}>
+            {contact.phone ? (
+              <TouchableOpacity style={[s.actionBtn, { backgroundColor: C.primary + '15', borderColor: C.primary }]}
+                onPress={() => Linking.openURL(`tel:${contact.phone}`)}>
+                <Ionicons name="call-outline" size={18} color={C.primary} />
+                <Text style={[s.actionText, { color: C.primary }]}>Call</Text>
+              </TouchableOpacity>
+            ) : null}
+            {contact.email ? (
+              <TouchableOpacity style={[s.actionBtn, { backgroundColor: C.primary + '15', borderColor: C.primary }]}
+                onPress={() => Linking.openURL(`mailto:${contact.email}`)}>
+                <Ionicons name="mail-outline" size={18} color={C.primary} />
+                <Text style={[s.actionText, { color: C.primary }]}>Email</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity style={[s.actionBtn, { backgroundColor: C.success + '15', borderColor: C.success }]}
+              onPress={() => Alert.alert('Log', 'Use ··· from the contacts list to log.')}>
+              <Ionicons name="chatbubble-outline" size={18} color={C.success} />
+              <Text style={[s.actionText, { color: C.success }]}>Log</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.actionBtn, { backgroundColor: tc + '15', borderColor: tc }]}
+              onPress={() => setEditOpen(true)}>
+              <Ionicons name="create-outline" size={18} color={tc} />
+              <Text style={[s.actionText, { color: tc }]}>Edit</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Action buttons */}
-        {(contact.phone || contact.email) && (
-          <View style={styles.actionsRow}>
-            {contact.phone && (
-              <TouchableOpacity style={styles.actionBtn} onPress={() => Linking.openURL(`tel:${contact.phone}`)}>
-                <Ionicons name="call-outline" size={20} color={Colors.success} />
-                <Text style={[styles.actionText, { color: Colors.success }]}>Call</Text>
-              </TouchableOpacity>
-            )}
-            {contact.email && (
-              <TouchableOpacity style={styles.actionBtn} onPress={() => Linking.openURL(`mailto:${contact.email}`)}>
-                <Ionicons name="mail-outline" size={20} color={Colors.primary} />
-                <Text style={[styles.actionText, { color: Colors.primary }]}>Email</Text>
-              </TouchableOpacity>
-            )}
-            {contact.phone && (
-              <TouchableOpacity style={styles.actionBtn} onPress={() => Linking.openURL(`sms:${contact.phone}`)}>
-                <Ionicons name="chatbubble-outline" size={20} color={Colors.sell} />
-                <Text style={[styles.actionText, { color: Colors.sell }]}>Text</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* Contact info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Info</Text>
-          <View style={styles.infoCard}>
-            {contact.phone && (
-              <View style={styles.infoRow}>
-                <Ionicons name="call-outline" size={16} color={Colors.textMuted} />
-                <Text style={styles.infoText}>{contact.phone}</Text>
+        {/* Contact Info */}
+        <View style={[s.section, { paddingTop: Spacing.lg }]}>
+          <Text style={[s.sectionTitle, { color: C.textMuted }]}>Contact Info</Text>
+          <View style={[s.card, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+            {[
+              { icon: 'mail-outline',     label: 'Email',        value: contact.email || '—' },
+              { icon: 'call-outline',     label: 'Phone',        value: contact.phone || '—' },
+              { icon: 'location-outline', label: 'Address',      value: contact.address || '—' },
+              { icon: 'time-outline',     label: 'Last Contact', value: contact.lastContact },
+            ].map((row, i, arr) => (
+              <View key={i} style={[s.infoRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.bgBorder }]}>
+                <Ionicons name={row.icon as any} size={16} color={C.textMuted} style={{ marginRight: Spacing.sm }} />
+                <Text style={[Typography.sm, { color: C.textSecondary, width: 90 }]}>{row.label}</Text>
+                <Text style={[Typography.sm, { color: C.textPrimary, flex: 1 }]}>{row.value}</Text>
               </View>
-            )}
-            {contact.email && (
-              <View style={styles.infoRow}>
-                <Ionicons name="mail-outline" size={16} color={Colors.textMuted} />
-                <Text style={styles.infoText}>{contact.email}</Text>
-              </View>
-            )}
-            {contact.address && (
-              <View style={styles.infoRow}>
-                <Ionicons name="location-outline" size={16} color={Colors.textMuted} />
-                <Text style={styles.infoText}>{contact.address}</Text>
-              </View>
-            )}
+            ))}
           </View>
         </View>
 
         {/* Desired property */}
         {contact.desiredProperty && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Desired Property</Text>
-            <View style={styles.infoCard}>
-              <View style={styles.dpGrid}>
-                {[
-                  { label: 'Sqft',   value: contact.desiredProperty.minSqft ? `${contact.desiredProperty.minSqft.toLocaleString()}+` : '—' },
-                  { label: 'Beds',   value: contact.desiredProperty.beds ? `${contact.desiredProperty.beds}+` : '—' },
-                  { label: 'Baths',  value: contact.desiredProperty.baths ? `${contact.desiredProperty.baths}+` : '—' },
-                  { label: 'Budget', value: contact.desiredProperty.minBudget ? `${fmt(contact.desiredProperty.minBudget)}–${fmt(contact.desiredProperty.maxBudget)}` : '—' },
-                  { label: 'Timing', value: contact.desiredProperty.timing || '—' },
-                  { label: 'City',   value: contact.desiredProperty.city || '—' },
-                ].map((item, i) => (
-                  <View key={i} style={styles.dpCell}>
-                    <Text style={Typography.label}>{item.label}</Text>
-                    <Text style={styles.dpValue}>{item.value}</Text>
-                  </View>
-                ))}
-              </View>
+          <View style={s.section}>
+            <Text style={[s.sectionTitle, { color: C.textMuted }]}>Desired Property</Text>
+            <View style={[s.card, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+              {[
+                { label: 'Budget',  value: `${fmt(contact.desiredProperty.minBudget)} – ${fmt(contact.desiredProperty.maxBudget)}` },
+                { label: 'Size',    value: `${contact.desiredProperty.minSqft}–${contact.desiredProperty.maxSqft} sqft` },
+                { label: 'Beds',    value: `${contact.desiredProperty.beds}+ bd` },
+                { label: 'City',    value: contact.desiredProperty.city || '—' },
+                { label: 'Timing',  value: contact.desiredProperty.timing || '—' },
+              ].map((row, i, arr) => (
+                <View key={i} style={[s.infoRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.bgBorder }]}>
+                  <Text style={[Typography.sm, { color: C.textSecondary, width: 90 }]}>{row.label}</Text>
+                  <Text style={[Typography.sm, { color: C.textPrimary, flex: 1 }]}>{row.value}</Text>
+                </View>
+              ))}
             </View>
           </View>
         )}
 
         {/* Notes */}
         {contact.notes ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Notes</Text>
-            <View style={styles.notesCard}>
-              <Text style={styles.notesText}>{contact.notes}</Text>
+          <View style={s.section}>
+            <Text style={[s.sectionTitle, { color: C.textMuted }]}>Notes</Text>
+            <View style={[s.card, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+              <Text style={[Typography.sm, { color: C.textPrimary, lineHeight: 20, padding: Spacing.sm }]}>{contact.notes}</Text>
             </View>
           </View>
         ) : null}
 
-        {/* Interaction history */}
-        {contact.interactions.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Interaction History</Text>
-            {contact.interactions.map(interaction => (
-              <View key={interaction.id} style={styles.interactionRow}>
-                <View style={styles.interactionDot} />
-                <View style={{ flex: 1 }}>
-                  <View style={styles.interactionHeader}>
-                    <Text style={styles.interactionType}>{interaction.type}</Text>
-                    <Text style={Typography.xs}>{interaction.date}</Text>
-                  </View>
-                  <Text style={Typography.sm}>{interaction.note}</Text>
-                </View>
+        {/* Interactions */}
+        <View style={s.section}>
+          <Text style={[s.sectionTitle, { color: C.textMuted }]}>Interaction History ({contact.interactions.length})</Text>
+          {contact.interactions.length === 0 ? (
+            <Text style={[Typography.sm, { color: C.textMuted, marginTop: 4 }]}>No interactions logged yet.</Text>
+          ) : contact.interactions.map(ix => (
+            <View key={ix.id} style={[s.interactionRow, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+              <View style={[s.interactionIcon, { backgroundColor: C.primary + '15' }]}>
+                <Ionicons name="chatbubble-outline" size={14} color={C.primary} />
               </View>
-            ))}
-          </View>
-        )}
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={[Typography.sm, { color: C.textPrimary, fontWeight: '600' }]}>{ix.type}</Text>
+                  <Text style={[Typography.xs, { color: C.textMuted }]}>{ix.date}</Text>
+                </View>
+                {ix.note ? <Text style={[Typography.xs, { color: C.textSecondary, marginTop: 3 }]}>{ix.note}</Text> : null}
+              </View>
+            </View>
+          ))}
+        </View>
       </ScrollView>
+
+      <EditBrokerModal
+        contact={contact}
+        visible={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={u => { setContact(u); setEditOpen(false); }}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen:     { flex: 1, backgroundColor: Colors.bgBase },
-  centered:   { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgBase },
-  header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.md, paddingTop: 56, backgroundColor: Colors.bgSurface, borderBottomWidth: 1, borderColor: Colors.bgBorder },
-  backBtn:    { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.bgElevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle:{ ...Typography.h3 },
-  profileCard:{ alignItems: 'center', padding: Spacing.xl, backgroundColor: Colors.bgSurface, borderBottomWidth: 1, borderColor: Colors.bgBorder },
-  avatarFallback:{ width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.primary + '33', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md, borderWidth: 3, borderColor: Colors.primary },
-  avatarInitial: { color: Colors.primary, fontSize: 28, fontWeight: '700' },
-  badgeRow:   { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
-  badge:      { paddingHorizontal: 12, paddingVertical: 4, borderRadius: Radius.full },
-  badgeText:  { fontSize: 12, fontWeight: '600' },
-  actionsRow: { flexDirection: 'row', padding: Spacing.md, gap: Spacing.md },
-  actionBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.bgSurface, borderRadius: Radius.md, paddingVertical: Spacing.md, borderWidth: 1, borderColor: Colors.bgBorder },
-  actionText: { fontWeight: '600', fontSize: 14 },
-  section:    { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
-  sectionTitle:{ ...Typography.label, marginBottom: Spacing.sm },
-  infoCard:   { backgroundColor: Colors.bgSurface, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.bgBorder },
-  infoRow:    { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 6 },
-  infoText:   { color: Colors.textPrimary, fontSize: 14 },
-  dpGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  dpCell:     { width: '30%', flex: 1, minWidth: '28%' },
-  dpValue:    { color: Colors.textPrimary, fontSize: 14, fontWeight: '600', marginTop: 2 },
-  notesCard:  { backgroundColor: Colors.bgSurface, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.bgBorder },
-  notesText:  { color: Colors.textSecondary, fontSize: 14, lineHeight: 20 },
-  interactionRow: { flexDirection: 'row', gap: Spacing.md, paddingVertical: Spacing.sm, borderBottomWidth: 1, borderColor: Colors.bgBorder },
-  interactionDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary, marginTop: 5 },
-  interactionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  interactionType:{ color: Colors.primary, fontSize: 13, fontWeight: '600' },
+const s = StyleSheet.create({
+  screen:   { flex: 1 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  header:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingTop: 52, paddingBottom: Spacing.md, borderBottomWidth: 1 },
+  headerTitle:    { fontSize: 17, fontWeight: '600' },
+  iconBtn:        { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  hero:           { alignItems: 'center', paddingVertical: Spacing.xl, borderBottomWidth: 1 },
+  avatar:         { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 2, marginBottom: Spacing.md },
+  avatarText:     { fontSize: 28, fontWeight: '700' },
+  name:           { fontSize: 22, fontWeight: '700' },
+  chip:           { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.full, borderWidth: 1 },
+  chipText:       { fontSize: 12, fontWeight: '600' },
+  actionsRow:     { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg, flexWrap: 'wrap', justifyContent: 'center' },
+  actionBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.md, borderWidth: 1 },
+  actionText:     { fontSize: 13, fontWeight: '600' },
+  section:        { paddingHorizontal: Spacing.md },
+  sectionTitle:   { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: Spacing.sm },
+  card:           { borderRadius: Radius.md, borderWidth: 1, overflow: 'hidden', marginBottom: Spacing.lg },
+  infoRow:        { flexDirection: 'row', alignItems: 'flex-start', padding: Spacing.md },
+  interactionRow: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs, borderWidth: 1, gap: Spacing.sm },
+  interactionIcon:{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+});
+
+const es = StyleSheet.create({
+  sheet:       { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, maxHeight: '88%', borderTopWidth: 1 },
+  handle:      { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.md },
+  title:       { fontSize: 17, fontWeight: '700', marginBottom: Spacing.md },
+  sectionLabel:{ fontSize: 14, fontWeight: '700', marginTop: Spacing.sm, marginBottom: Spacing.sm },
+  label:       { fontSize: 11, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 5 },
+  input:       { borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: 11, fontSize: 15 },
+  notesInput:  { height: 80, textAlignVertical: 'top' },
+  chipRow:     { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  chip:        { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1 },
+  twoCol:      { flexDirection: 'row' },
+  btnRow:       { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  cancelBtn:    { flex: 1, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', borderWidth: 1 },
+  cancelBtnText:{ fontSize: 15, fontWeight: '600' },
+  saveBtn:      { flex: 1, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center' },
+  saveBtnText:  { color: '#fff', fontSize: 15, fontWeight: '600' },
 });
