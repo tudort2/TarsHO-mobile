@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "TARS",
+    "slug": "tars-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tarsusa.homeownership"
+    },
+    "android": {
+      "package": "com.tarsusa.homeownership"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c7136656-ad3a-4921-9f8d-9c8580d87360"
+      }
+    },
+    "owner": "tudor.toma"
+  }
+}
