@@ -13,6 +13,12 @@ if exist "%SOURCE%" (
   echo [1/4] Copying project files...
   robocopy "%SOURCE%" "%TARGET%" /E /XD node_modules .git /XF package-lock.json /NFL /NDL /NJH /NJS
   copy "%~f0" "%TARGET%\deploy-tars.bat" /Y >nul
+  if exist "%SOURCE%\.env" (
+    copy "%SOURCE%\.env" "%TARGET%\.env" /Y >nul
+    echo Copied .env file.
+  ) else (
+    echo WARNING: No .env file found in source. Create one with EXPO_PUBLIC_API_URL set.
+  )
   echo Done.
   echo.
 ) else (

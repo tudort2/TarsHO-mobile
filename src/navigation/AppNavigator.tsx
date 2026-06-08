@@ -6,8 +6,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Colors } from '../theme';
-import { Role, User } from '../types';
-import { MOCK_USER } from '../data/mockData';
+import { Role } from '../types';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/homeowner/DashboardScreen';
@@ -19,14 +19,12 @@ import ProfileScreen from '../screens/ProfileScreen';
 import RoleSwitcher from '../components/RoleSwitcher';
 import TopBar from '../components/TopBar';
 
-// Each navigator instance must be created once at module scope
-const RootStack   = createNativeStackNavigator();
-const DashStack   = createNativeStackNavigator(); // Dashboard → PropertyDetail
-const ContactStack = createNativeStackNavigator(); // Contacts  → ContactDetail
-const HomeTab     = createBottomTabNavigator();
-const BrokerTab   = createBottomTabNavigator();
+const RootStack    = createNativeStackNavigator();
+const DashStack    = createNativeStackNavigator();
+const ContactStack = createNativeStackNavigator();
+const HomeTab      = createBottomTabNavigator();
+const BrokerTab    = createBottomTabNavigator();
 
-// ─── Dashboard stack (handles PropertyDetail navigation) ─────────────────────
 function DashboardStackNav() {
   return (
     <DashStack.Navigator screenOptions={{ headerShown: false }}>
@@ -36,7 +34,6 @@ function DashboardStackNav() {
   );
 }
 
-// ─── Contacts stack (handles ContactDetail navigation) ───────────────────────
 function ContactsStackNav() {
   return (
     <ContactStack.Navigator screenOptions={{ headerShown: false }}>
@@ -46,8 +43,8 @@ function ContactsStackNav() {
   );
 }
 
-// ─── Homeowner tabs ───────────────────────────────────────────────────────────
-function HomeownerTabs({ user }: { user: User }) {
+function HomeownerTabs() {
+  const { user } = useAuth();
   return (
     <HomeTab.Navigator
       screenOptions={({ route }) => ({
@@ -61,27 +58,18 @@ function HomeownerTabs({ user }: { user: User }) {
             Journey:   'map-outline',
             Profile:   'person-outline',
           };
-          return (
-            <Ionicons
-              name={(icons[route.name] ?? 'ellipse-outline') as any}
-              size={size}
-              color={color}
-            />
-          );
+          return <Ionicons name={(icons[route.name] ?? 'ellipse-outline') as any} size={size} color={color} />;
         },
       })}
     >
       <HomeTab.Screen name="Dashboard" component={DashboardStackNav} />
       <HomeTab.Screen name="Journey"   component={JourneyScreen} />
-      <HomeTab.Screen name="Profile">
-        {() => <ProfileScreen user={user} />}
-      </HomeTab.Screen>
+      <HomeTab.Screen name="Profile"   component={ProfileScreen} />
     </HomeTab.Navigator>
   );
 }
 
-// ─── Broker tabs ──────────────────────────────────────────────────────────────
-function BrokerTabs({ user }: { user: User }) {
+function BrokerTabs() {
   return (
     <BrokerTab.Navigator
       screenOptions={({ route }) => ({
@@ -94,31 +82,19 @@ function BrokerTabs({ user }: { user: User }) {
             Contacts: 'people-outline',
             Profile:  'person-outline',
           };
-          return (
-            <Ionicons
-              name={(icons[route.name] ?? 'ellipse-outline') as any}
-              size={size}
-              color={color}
-            />
-          );
+          return <Ionicons name={(icons[route.name] ?? 'ellipse-outline') as any} size={size} color={color} />;
         },
       })}
     >
       <BrokerTab.Screen name="Contacts" component={ContactsStackNav} />
-      <BrokerTab.Screen name="Profile">
-        {() => <ProfileScreen user={user} />}
-      </BrokerTab.Screen>
+      <BrokerTab.Screen name="Profile"  component={ProfileScreen} />
     </BrokerTab.Navigator>
   );
 }
 
-// ─── Main app shell (shown after login) ──────────────────────────────────────
-interface ShellProps {
-  user: User;
-  onRoleTap: () => void;
-}
-
-function AppShell({ user, onRoleTap }: ShellProps) {
+function AppShell({ onRoleTap }: { onRoleTap: () => void }) {
+  const { user } = useAuth();
+  if (!user) return null;
   return (
     <View style={styles.shell}>
       <TopBar
@@ -127,64 +103,46 @@ function AppShell({ user, onRoleTap }: ShellProps) {
         avatarUrl={user.avatarUrl}
         onRoleTap={onRoleTap}
       />
-      {/* key={user.role} resets the navigator when the role changes */}
       <View key={user.role} style={styles.content}>
-        {user.role === 'broker'
-          ? <BrokerTabs user={user} />
-          : <HomeownerTabs user={user} />
-        }
+        {user.role === 'broker' ? <BrokerTabs /> : <HomeownerTabs />}
       </View>
     </View>
   );
 }
 
-// ─── Root navigator ───────────────────────────────────────────────────────────
-export default function AppNavigator() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [user, setUser] = useState<User>(MOCK_USER);
+function RootNavigator() {
+  const { user, login } = useAuth();
   const [roleSwitcherVisible, setRoleSwitcherVisible] = useState(false);
-
-  const handleLogin = async (email: string, password: string): Promise<void> => {
-    // Replace with: await api.auth.login(email, password)
-    await new Promise(r => setTimeout(r, 800));
-    if (password.length < 4) throw new Error('Invalid credentials');
-    setLoggedIn(true);
-  };
-
-  const handleRoleChange = (role: Role) => {
-    setUser(prev => ({ ...prev, role }));
-  };
 
   return (
     <>
       <NavigationContainer>
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
-          {!loggedIn ? (
+          {!user ? (
             <RootStack.Screen name="Login">
-              {() => <LoginScreen onLogin={handleLogin} />}
+              {() => <LoginScreen onLogin={login} />}
             </RootStack.Screen>
           ) : (
             <RootStack.Screen name="App">
-              {() => (
-                <AppShell
-                  user={user}
-                  onRoleTap={() => setRoleSwitcherVisible(true)}
-                />
-              )}
+              {() => <AppShell onRoleTap={() => setRoleSwitcherVisible(true)} />}
             </RootStack.Screen>
           )}
         </RootStack.Navigator>
       </NavigationContainer>
 
-      {/* Role switcher lives outside NavigationContainer intentionally —
-          it is a plain Modal and needs no navigation context */}
       <RoleSwitcher
-        currentRole={user.role}
-        onSelect={handleRoleChange}
         visible={roleSwitcherVisible}
         onClose={() => setRoleSwitcherVisible(false)}
       />
     </>
+  );
+}
+
+export default function AppNavigator() {
+  return (
+    <AuthProvider>
+      <RootNavigator />
+    </AuthProvider>
   );
 }
 

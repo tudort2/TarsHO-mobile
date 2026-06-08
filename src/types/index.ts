@@ -5,7 +5,11 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  roles: Role[];
   avatarUrl?: string;
+  phone?: string;
+  brokerage?: string;
+  licenseNo?: string;
 }
 
 export interface Property {
@@ -16,15 +20,17 @@ export interface Property {
   zip: string;
   purchasePrice: number;
   currentValue: number;
+  avmLow?: number;
+  avmHigh?: number;
   mortgageBalance: number;
+  mortgageRate?: number;
   equity: number;
   sqft: number;
   beds: number;
   baths: number;
   yearBuilt: number;
-  lat: number;
-  lng: number;
-  imageUrl: string;
+  imageUrl?: string;
+  tasks?: Task[];
 }
 
 export interface JourneyStage {
@@ -44,13 +50,15 @@ export interface ChecklistItem {
 export interface Task {
   id: string;
   title: string;
-  dueDate: string;
+  description?: string;
+  dueDate?: string;
   priority: 'high' | 'medium' | 'low';
+  status?: string;
   completed: boolean;
 }
 
 export type ContactStatus = 'Active' | 'Passive' | 'Lead' | 'Non-Client';
-export type ContactType = 'Buyer' | 'Seller';
+export type ContactType = 'Buyer' | 'Seller' | 'Both';
 
 export interface Contact {
   id: string;
@@ -61,8 +69,8 @@ export interface Contact {
   status: ContactStatus;
   type: ContactType;
   lastContact: string;
-  engagementScore: number;
-  avatarUrl: string;
+  engagementScore?: number;
+  avatarUrl?: string;
   notes: string;
   desiredProperty?: DesiredProperty;
   interactions: Interaction[];
@@ -85,6 +93,24 @@ export interface Interaction {
   date: string;
   type: string;
   note: string;
+}
+
+export interface Engagement {
+  id: string;
+  type: 'buy' | 'sell';
+  status: string;
+  currentStage: number;
+  totalStages: number;
+  stages: EngagementStage[];
+  brokerName?: string;
+  contactName?: string;
+  notes?: string;
+}
+
+export interface EngagementStage {
+  stageNumber: number;
+  name: string;
+  status: 'pending' | 'current' | 'done';
 }
 
 export interface PipelineCard {

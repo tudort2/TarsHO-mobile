@@ -12,11 +12,5 @@
     "android": {
       "package": "com.tarsusa.homeownership"
     },
-    "extra": {
-      "eas": {
-        "projectId": "c7136656-ad3a-4921-9f8d-9c8580d87360"
-      }
-    },
-    "owner": "tudor.toma"
   }
 }
