@@ -372,7 +372,7 @@ function PriorityPill({ priority, C }: { priority?: Priority; C: any }) {
 function StageRow({
   stage, totalStages, localDone, advancing,
   onMarkComplete, onNext, navigation, engType,
-  expanded, onToggleExpand,
+  expanded, onToggleExpand, dayOffset,
 }: {
   stage:           StageWithDur;
   totalStages:     number;
@@ -384,6 +384,7 @@ function StageRow({
   engType:         'buy' | 'sell';
   expanded:        boolean;
   onToggleExpand:  () => void;
+  dayOffset:       number;
 }) {
   const C = useColors();
 
@@ -449,15 +450,15 @@ function StageRow({
             <View style={styles.titleRight}>
               {isCompleted ? (
                 <View style={[styles.dayChip, { backgroundColor: C.success + '22' }]}>
-                  <Text style={[styles.dayChipText, { color: C.success }]}>Done</Text>
+                  <Text style={[styles.dayChipText, { color: C.success }]}>Complete</Text>
                 </View>
               ) : isActive ? (
                 <View style={[styles.dayChip, { backgroundColor: C.primary + '18' }]}>
-                  <Text style={[styles.dayChipText, { color: C.primary }]}>~{stage.duration}d</Text>
+                  <Text style={[styles.dayChipText, { color: C.primary }]}>~ {dayOffset} days</Text>
                 </View>
               ) : (
                 <View style={[styles.dayChip, { backgroundColor: C.bgBorder }]}>
-                  <Text style={[styles.dayChipText, { color: C.textMuted }]}>~{stage.duration}d</Text>
+                  <Text style={[styles.dayChipText, { color: C.textMuted }]}>~ {dayOffset} days</Text>
                 </View>
               )}
               <Ionicons
@@ -804,7 +805,13 @@ export default function JourneyScreen() {
             </View>
 
             {/* Stage list */}
-            {stages.map(stage => (
+            {stages.map((stage, idx) => {
+              // Running total of days from all preceding stages that are NOT yet completed
+              const dayOffset = stages.slice(0, idx).reduce((sum, s) => {
+                const done = s.status === 'completed' || localDone.has(s.id);
+                return done ? sum : sum + s.duration;
+              }, 0);
+              return (
               <StageRow
                 key={stage.id}
                 stage={stage}
@@ -817,8 +824,9 @@ export default function JourneyScreen() {
                 engType={tab}
                 expanded={expandedIds.has(stage.id)}
                 onToggleExpand={() => toggleExpanded(stage.id)}
+                dayOffset={dayOffset}
               />
-            ))}
+            ); })}
           </>
         )}
       </ScrollView>
@@ -920,19 +928,4 @@ const styles = StyleSheet.create({
   stepTiming:    { fontSize: 11, marginTop: 1 },
 
   // Priority pill
-  priPill:     { paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.full, flexShrink: 0 },
-  priPillText: { fontSize: 10, fontWeight: '700' },
-
-  // Tools
-  toolRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1 },
-  toolName: { fontSize: 12, fontWeight: '500' },
-
-  // Empty state
-  emptyState: {
-    borderRadius: Radius.lg,
-    borderWidth:  1,
-    padding:      Spacing.xl,
-    alignItems:   'center' as const,
-    marginTop:    Spacing.xl,
-  },
-});
+  priPill:     { paddingHorizontal: 6, paddingVertical: 2, borderRadius: Rad
