@@ -208,7 +208,7 @@ function AppShell() {
         tabBarStyle: (() => {
           if (route.name === 'HomeTab') {
             const focused = getFocusedRouteNameFromRoute(route) ?? '';
-            if (focused === 'BuyContext') return { display: 'none' };
+            if (focused === 'BuyContext' || focused === 'PropertyDetail') return { display: 'none' };
           }
           return {
             backgroundColor: colors.bgSurface,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Image, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, ImageBackground, StyleSheet,
   Dimensions, Platform, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -469,8 +469,7 @@ export default function PropertyDetailScreen() {
   return (
     <View style={[s.screen, { backgroundColor: C.bgBase }]}>
       {/* ── Hero image ──────────────────────────────────────────────────── */}
-      <View style={s.hero}>
-        <Image source={{ uri: imgUrl }} style={s.heroImg} resizeMode="cover" />
+      <ImageBackground source={{ uri: imgUrl }} style={s.hero} resizeMode="cover">
         {/* Back button */}
         <TouchableOpacity style={[s.backBtn, { top: TOP_INSET + 8 }]} onPress={() => nav.goBack()}>
           <Ionicons name="chevron-back" size={20} color="#fff" />
@@ -487,7 +486,7 @@ export default function PropertyDetailScreen() {
             {property.yearBuilt && <View style={s.heroChip}><Text style={s.heroChipTxt}>Built {property.yearBuilt}</Text></View>}
           </View>
         </View>
-      </View>
+      </ImageBackground>
 
       {/* ── Content ─────────────────────────────────────────────────────── */}
       <View style={{ flex: 1 }}>
@@ -532,7 +531,6 @@ const s = StyleSheet.create({
 
   // Hero
   hero:        { width, height: HERO_H, position: 'relative' },
-  heroImg:     { width, height: HERO_H },
   backBtn:     {
     position: 'absolute', left: 12, width: 34, height: 34,
     borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.45)',
