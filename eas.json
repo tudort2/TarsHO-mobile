@@ -1,7 +1,5 @@
 {
-  "cli": {
-    "version": ">= 8.0.0"
-  },
+  "cli": { "version": ">= 8.0.0" },
   "build": {
     "development": {
       "developmentClient": true,
@@ -9,11 +7,12 @@
     },
     "preview": {
       "distribution": "internal",
-      "ios": {
-        "simulator": false
-      }
+      "channel": "ui-v1",
+      "ios": { "simulator": false }
     },
-    "production": {}
+    "production": {
+      "channel": "ui-v1"
+    }
   },
   "submit": {
     "production": {}
