@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Modal, Pressable,
   TextInput, StyleSheet, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { useColors } from '../../context/ThemeContext';
 import { Spacing, Radius, Typography } from '../../theme';
 import { Engagement, EngagementStage } from '../../types';
@@ -12,121 +12,192 @@ import { api } from '../../api/client';
 import { getInitials } from '../../utils/initials';
 
 // ── Stage definitions ─────────────────────────────────────────────────────────
-const STAGE_DAYS: Record<number, number> = {
-  1:1, 2:3, 3:7, 4:30, 5:3, 6:2, 7:10, 8:14, 9:1, 10:3, 11:7,
-};
-const STAGE_NAMES: Record<number, string> = {
-  1:'Initial Contact',   2:'Needs Assessment', 3:'Pre-Approval',
-  4:'Property Search',   5:'Offer Submitted',  6:'Under Contract',
-  7:'Inspection',        8:'Appraisal',         9:'Final Walkthrough',
-  10:'Closing',          11:'Post-Close',
-};
-const STAGE_DESC: Record<number, string> = {
-  1: 'First outreach or referral. Confirm contact details and set expectations for the journey ahead.',
-  2: 'Understand the client\'s goals, timeline, budget, and property preferences in detail.',
-  3: 'Client works with lender to obtain pre-approval letter. Confirm budget ceiling before searching.',
-  4: 'Active search phase. Schedule showings, review listings, and refine criteria with the client.',
-  5: 'Draft and submit offer. Negotiate price, contingencies, and terms with the seller\'s agent.',
-  6: 'Offer accepted. Open escrow, deposit earnest money, and begin all due-diligence work.',
-  7: 'Schedule and attend home inspection. Review report, then negotiate repairs or credits.',
-  8: 'Lender orders independent appraisal. Ensure the property value meets the loan threshold.',
-  9: 'Walk the property 24 h before closing. Verify agreed-upon repairs and overall condition.',
-  10: 'Sign closing documents, transfer funds, record the deed, and hand over the keys.',
-  11: 'Follow up with client post-move. Ensure smooth transition. Request referrals.',
+const STAGE_DURATION: Record<string, number> = {
+  'Market Exploration': 7, 'Sign Buyer Agreement': 2, 'Pre-Approval': 7,
+  'Search Listings': 21, 'Property Viewing': 14, 'Opinion of Value': 5,
+  'Make Offer': 3, 'Offer Negotiation': 5, 'Mutual Agreement': 1,
+  'Earnest Deposit': 1, 'Loan Application': 14, 'Formal Appraisal': 14,
+  'House Inspection': 10, 'Final Walk-through': 1, 'Verification': 3,
+  'Closing': 1, 'After Sale Service': 7,
+  'Market Analysis': 5, 'Sign Seller Agreement': 2, 'Pre-Appraisal': 5,
+  'Pre-Inspection': 5, 'Prepare for Listing': 14, 'Listing Price Decision': 3,
+  'Listing Property': 3, 'Listing Management': 30, 'Showing': 21,
+  'Offers Review': 5, 'Escrow': 14,
 };
 
-// ── Stage builder ──────────────────────────────────────────────────────────────
+const STAGE_DESC: Record<string, string> = {
+  'Market Exploration':
+    "Get a feel for neighborhoods, prices, and timing before committing. Browse the map, review trends, set your target zones.",
+  'Sign Buyer Agreement':
+    "Formalize representation with your broker. Review agreement terms and e-Sign via DocuSign.",
+  'Pre-Approval':
+    "Know your true budget and strengthen your offers. Share financials with a lender and receive a pre-approval letter.",
+  'Search Listings':
+    "Active search phase. Review MLS listings daily, set saved-search filters, and shortlist 5-8 strong candidates.",
+  'Property Viewing':
+    "Schedule in-person showings. Evaluate condition, layout, and neighborhood. Take notes and photos at each home.",
+  'Opinion of Value':
+    "Anchor to data before you make an offer. Run a QCMA on your top candidate and compare to the list price.",
+  'Make Offer':
+    "Set price and terms with confidence. Test offer prices in scenarios, choose contingencies, and prepare your offer.",
+  'Offer Negotiation':
+    "Counter-offer rounds with the seller. Submit offer, review counteroffer, and negotiate terms to mutual agreement.",
+  'Mutual Agreement':
+    "Both sides agree; the purchase agreement is signed. Confirm mutually accepted terms and receive signed agreement.",
+  'Earnest Deposit':
+    "Show good faith via escrow. Wire earnest money and confirm escrow receipt.",
+  'Loan Application':
+    "Lock financing in motion. Complete full loan application and lock your interest rate.",
+  'Formal Appraisal':
+    "Lender confirms the home value. Appraisal is scheduled and reviewed against the purchase price.",
+  'House Inspection':
+    "Understand the home condition. Hire an inspector, attend the inspection, and negotiate repairs.",
+  'Final Walk-through':
+    "Verify condition right before closing. Confirm repairs completed and home is ready to close.",
+  'Verification':
+    "Review title and disclosures. Review preliminary title report and verify seller disclosures.",
+  'Closing':
+    "Sign, fund, record - then keys. Sign closing documents, confirm wiring, and receive keys.",
+  'After Sale Service':
+    "Make your new home sticky in TARS. Set up your Home Digest and turn on maintenance reminders.",
+  'Market Analysis':
+    "Understand likely price range and timing. Review market research and Quantarium valuation & comps.",
+  'Sign Seller Agreement':
+    "Engage your broker formally. Review listing terms & commission and e-Sign via DocuSign.",
+  'Pre-Appraisal':
+    "Optional value check before listing. Schedule a pre-appraisal to benchmark your expected sale price.",
+  'Pre-Inspection':
+    "Surface issues early to avoid surprises. Book a pre-inspection and review findings & plan repairs.",
+  'Prepare for Listing':
+    "Repairs, landscaping, decluttering, cleaning, staging, photos, and signpost. First impressions drive offers.",
+  'Listing Price Decision':
+    "Choose your list price from data. Compare TerraPlot scenarios and set a strategic list price.",
+  'Listing Property':
+    "Submit to NWMLS and syndicate. Sign the Listing Agreement and approve marketing photos.",
+  'Listing Management':
+    "Go live and start promotion. Confirm listing is live on NWMLS and launch your marketing campaign.",
+  'Showing':
+    "Buyers tour; you receive showing reports. Approve showing schedule and review showing feedback.",
+  'Offers Review':
+    "Evaluate incoming offers against the market. Review all offers vs. comps and discuss strategy with broker.",
+  'Escrow':
+    "Track inspections, appraisal, and financing. Provide access for inspection & appraisal and respond to repair requests.",
+};
+
+const MAP_STAGE_NAMES = new Set([
+  'Market Exploration', 'Search Listings', 'Property Viewing', 'Opinion of Value',
+  'Market Analysis', 'Listing Price Decision', 'Listing Management',
+]);
+
+const BUY_STAGE_NAMES = [
+  'Market Exploration', 'Sign Buyer Agreement', 'Pre-Approval', 'Search Listings',
+  'Property Viewing', 'Opinion of Value', 'Make Offer', 'Offer Negotiation',
+  'Mutual Agreement', 'Earnest Deposit', 'Loan Application', 'Formal Appraisal',
+  'House Inspection', 'Final Walk-through', 'Verification', 'Closing', 'After Sale Service',
+];
+const SELL_STAGE_NAMES = [
+  'Market Analysis', 'Sign Seller Agreement', 'Pre-Appraisal', 'Pre-Inspection',
+  'Prepare for Listing', 'Listing Price Decision', 'Listing Property', 'Listing Management',
+  'Showing', 'Offers Review', 'Offer Negotiation', 'Mutual Agreement',
+  'Escrow', 'Closing', 'After Sale Service',
+];
+
 type StageItem = EngagementStage & { dayStart: number; dayDuration: number };
 
 function buildStages(eng: Engagement): StageItem[] {
+  const nameList = eng.type === 'sell' ? SELL_STAGE_NAMES : BUY_STAGE_NAMES;
   const base = eng.stages.length > 0
-    ? eng.stages
+    ? eng.stages.map(s => ({
+        ...s,
+        name: /^Stage \d+$/i.test(s.name) ? (nameList[s.stageNumber - 1] ?? s.name) : s.name,
+      }))
     : Array.from({ length: eng.totalStages }, (_, i) => ({
         stageNumber: i + 1,
-        name: STAGE_NAMES[i + 1] ?? `Stage ${i + 1}`,
-        status: (i + 1 < eng.currentStage ? 'done' : i + 1 === eng.currentStage ? 'current' : 'pending') as 'done' | 'current' | 'pending',
+        name: nameList[i] ?? `Stage ${i + 1}`,
+        status: (
+          i + 1 < eng.currentStage ? 'done' :
+          i + 1 === eng.currentStage ? 'current' : 'pending'
+        ) as 'done' | 'current' | 'pending',
       }));
   let running = 1;
   return base.map(s => {
-    const dur = STAGE_DAYS[s.stageNumber] ?? 5;
+    const dur = STAGE_DURATION[s.name] ?? 3;
     const item: StageItem = { ...s, dayStart: running, dayDuration: dur };
     running += dur;
     return item;
   });
 }
 
-// ── Step Detail Modal ─────────────────────────────────────────────────────────
-function StepDetailModal({ stage, typeColor, visible, onClose, onMarkComplete, onMarkIncomplete }: {
-  stage: StageItem | null;
+// ── Timeline Bottom Sheet ─────────────────────────────────────────────────────
+function TimelineSheet({ stages, typeColor, viewedStageNum, visible, onClose, onSelectStage }: {
+  stages: StageItem[];
   typeColor: string;
+  viewedStageNum: number;
   visible: boolean;
   onClose: () => void;
-  onMarkComplete: () => void;
-  onMarkIncomplete: () => void;
+  onSelectStage: (stage: StageItem) => void;
 }) {
   const C = useColors();
-  const [note, setNote] = useState('');
-  if (!stage) return null;
-
-  const isDone = stage.status === 'done';
-  const desc   = STAGE_DESC[stage.stageNumber] ?? 'No description available.';
-
+  if (!visible) return null;
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={md.backdrop} onPress={onClose} />
-      <View style={[md.sheet, { backgroundColor: C.bgSurface, borderTopColor: C.bgBorder }]}>
-        <View style={[md.handle, { backgroundColor: C.bgBorder }]} />
-
-        {/* Stage header */}
-        <View style={md.stageHeader}>
-          <View style={[md.stageDot, { backgroundColor: typeColor + '22', borderColor: typeColor }]}>
-            <Text style={[md.stageNum, { color: typeColor }]}>{stage.stageNumber}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[md.stageName, { color: C.textPrimary }]}>{stage.name}</Text>
-            <Text style={[Typography.xs, { color: C.textMuted }]}>
-              Day {stage.dayStart} · {stage.dayDuration} day{stage.dayDuration !== 1 ? 's' : ''} · {stage.status}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={onClose} style={md.closeBtn}>
+      <Pressable style={ts.backdrop} onPress={onClose} />
+      <View style={[ts.sheet, { backgroundColor: C.bgSurface, borderTopColor: typeColor + '55' }]}>
+        <View style={[ts.grip, { backgroundColor: C.bgBorder2 }]} />
+        <View style={ts.header}>
+          <Text style={[ts.title, { color: C.textPrimary }]}>Transaction Timeline</Text>
+          <TouchableOpacity onPress={onClose} style={ts.closeBtn}>
             <Ionicons name="close" size={20} color={C.textMuted} />
           </TouchableOpacity>
         </View>
-
-        {/* Description */}
-        <Text style={[md.sectionLabel, { color: C.textMuted }]}>About this step</Text>
-        <Text style={[Typography.sm, { color: C.textSecondary, lineHeight: 20, marginBottom: Spacing.md }]}>{desc}</Text>
-
-        {/* Notes */}
-        <Text style={[md.sectionLabel, { color: C.textMuted }]}>Notes</Text>
-        <TextInput
-          value={note}
-          onChangeText={setNote}
-          placeholder="Add notes for this step..."
-          placeholderTextColor={C.textMuted}
-          multiline
-          numberOfLines={3}
-          style={[md.noteInput, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]}
-        />
-
-        {/* Mark button */}
-        <TouchableOpacity
-          style={[md.markBtn, { backgroundColor: isDone ? C.warning + 'DD' : C.success }]}
-          onPress={() => {
-            isDone ? onMarkIncomplete() : onMarkComplete();
-            onClose();
-          }}
-        >
-          <Ionicons
-            name={isDone ? 'arrow-undo-outline' : 'checkmark-circle-outline'}
-            size={18}
-            color="#fff"
-            style={{ marginRight: 8 }}
-          />
-          <Text style={md.markBtnText}>
-            {isDone ? 'Mark Incomplete' : 'Mark Complete'}
-          </Text>
-        </TouchableOpacity>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+          {stages.map((stage, i) => {
+            const isDone    = stage.status === 'done';
+            const isViewed  = stage.stageNumber === viewedStageNum;
+            const dotBg     = isDone ? C.success : isViewed ? typeColor : 'transparent';
+            const dotBorder = isDone ? C.success : isViewed ? typeColor : C.bgBorder2;
+            return (
+              <TouchableOpacity
+                key={stage.stageNumber}
+                style={[
+                  ts.row,
+                  { borderBottomColor: C.bgBorder },
+                  isViewed && { backgroundColor: typeColor + '0A' },
+                ]}
+                onPress={() => { onSelectStage(stage); onClose(); }}
+                activeOpacity={0.7}
+              >
+                <View style={ts.connWrap}>
+                  <View style={[ts.dot, { backgroundColor: dotBg, borderColor: dotBorder }]}>
+                    {isDone && <Ionicons name="checkmark" size={10} color="#fff" />}
+                  </View>
+                  {i < stages.length - 1 && (
+                    <View style={[ts.line, { backgroundColor: isDone ? C.success + '44' : C.bgBorder }]} />
+                  )}
+                </View>
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[ts.rowNum, { color: isDone ? C.textMuted : isViewed ? typeColor : C.textSecondary }]}>
+                    {stage.stageNumber}.
+                  </Text>
+                  <Text style={[ts.rowName, {
+                    flex: 1,
+                    color: isDone ? C.textMuted : isViewed ? C.textPrimary : C.textSecondary,
+                    fontWeight: isViewed ? '700' : '400',
+                    textDecorationLine: isDone ? 'line-through' : 'none',
+                  }]} numberOfLines={1}>
+                    {stage.name}
+                  </Text>
+                  {isViewed && (
+                    <View style={[ts.curPip, { backgroundColor: typeColor + '22', borderColor: typeColor }]}>
+                      <Text style={[ts.curPipText, { color: typeColor }]}>Viewing</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[ts.dayMeta, { color: C.textMuted }]}>+{stage.dayDuration}d</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -134,8 +205,9 @@ function StepDetailModal({ stage, typeColor, visible, onClose, onMarkComplete, o
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function EngagementDetailScreen() {
-  const C     = useColors();
-  const route = useRoute<any>();
+  const C          = useColors();
+  const route      = useRoute<any>();
+  const navigation = useNavigation<any>();
 
   const initEng: Engagement | null = route.params?.engagement ?? null;
   const contactName: string = route.params?.contactName ?? initEng?.contactName ?? 'Client';
@@ -143,77 +215,73 @@ export default function EngagementDetailScreen() {
   const [eng,          setEng]         = useState<Engagement | null>(initEng);
   const [stages,       setStages]      = useState<StageItem[]>(initEng ? buildStages(initEng) : []);
   const [advancing,    setAdvancing]   = useState(false);
-  const [loading,      setLoading]     = useState(!initEng);
-  const [detailStage,  setDetailStage] = useState<StageItem | null>(null);
-  const [detailVisible,setDetailVisible] = useState(false);
-
-  // Scroll ref + row y-positions for auto-scroll
-  const scrollRef  = useRef<ScrollView>(null);
-  const rowYRef    = useRef<Record<number, number>>({});
+  const [loading,      setLoading]     = useState(true);
+  const [timelineOpen, setTimelineOpen]= useState(false);
+  const [selectedIdx,  setSelectedIdx] = useState<number | null>(null);
+  const [note,         setNote]        = useState('');
 
   useEffect(() => {
-    if (!initEng && route.params?.contactId) {
+    const fetchId: string | null = initEng?.id ?? route.params?.engagementId ?? null;
+    if (fetchId) {
+      api.engagements.get(fetchId)
+        .then(found => { setEng(found); setStages(buildStages(found)); })
+        .catch(() => { if (initEng) setStages(buildStages(initEng)); })
+        .finally(() => setLoading(false));
+    } else if (route.params?.contactId) {
+      const cName = route.params?.contactName ?? '';
       api.engagements.list()
         .then(all => {
-          const found = all.find(e => e.contactName === contactName) ?? all[0] ?? null;
-          if (found) { setEng(found); setStages(buildStages(found)); }
+          const found = all.find(e => e.contactName === cName);
+          return found ? api.engagements.get(found.id) : Promise.reject('not found');
         })
+        .then(found => { setEng(found); setStages(buildStages(found)); })
         .catch(() => {})
         .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
     }
   }, []);
 
-  // Tap a row: make it current + open detail modal + scroll so it appears above modal
-  const handleRowTap = useCallback((stage: StageItem) => {
-    // Mark tapped stage as current locally
-    setStages(prev => prev.map(s => ({
-      ...s,
-      status: s.stageNumber === stage.stageNumber
-        ? (s.status === 'done' ? 'done' : 'current')   // keep done if already done
-        : s.status === 'current' ? 'pending' : s.status, // demote previous current
-    })));
+  const viewedStage: StageItem | null = selectedIdx !== null
+    ? (stages[selectedIdx] ?? null)
+    : (stages.find(s => s.status === 'current') ?? stages[0] ?? null);
 
-    setDetailStage(stage);
-    setDetailVisible(true);
+  const handleSelectStage = useCallback((stage: StageItem) => {
+    const idx = stages.findIndex(s => s.stageNumber === stage.stageNumber);
+    setSelectedIdx(idx >= 0 ? idx : null);
+  }, [stages]);
 
-    // Scroll so the tapped row is near the top — modal takes ~55% of screen from bottom
-    const y = rowYRef.current[stage.stageNumber] ?? 0;
-    setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true });
-    }, 80);
-  }, []);
-
-  const handleMarkComplete = useCallback(() => {
-    if (!detailStage) return;
+  const handleMarkComplete = () => {
+    if (!viewedStage) return;
     setStages(prev => prev.map(s =>
-      s.stageNumber === detailStage.stageNumber ? { ...s, status: 'done' } : s
+      s.stageNumber === viewedStage.stageNumber ? { ...s, status: 'done' } : s
     ));
-  }, [detailStage]);
+  };
 
-  const handleMarkIncomplete = useCallback(() => {
-    if (!detailStage) return;
+  const handleMarkIncomplete = () => {
+    if (!viewedStage) return;
     setStages(prev => prev.map(s =>
-      s.stageNumber === detailStage.stageNumber ? { ...s, status: 'current' } : s
+      s.stageNumber === viewedStage.stageNumber ? { ...s, status: 'current' } : s
     ));
-  }, [detailStage]);
+  };
 
   const handleAdvance = () => {
     if (!eng) return;
-    Alert.alert(
-      'Advance Stage',
-      `Move to: ${STAGE_NAMES[eng.currentStage + 1] ?? 'Next'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Advance', onPress: async () => {
-          setAdvancing(true);
-          try {
-            const updated = await api.engagements.advance(eng.id);
-            setEng(updated); setStages(buildStages(updated));
-          } catch (e: any) { Alert.alert('Error', e.message); }
-          finally { setAdvancing(false); }
-        }},
-      ]
-    );
+    const nextStage = stages.find(s => s.stageNumber === eng.currentStage + 1);
+    const nextName  = nextStage?.name ?? 'next stage';
+    Alert.alert('Advance Stage', `Move to: ${nextName}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Advance', onPress: async () => {
+        setAdvancing(true);
+        try {
+          const updated = await api.engagements.advance(eng.id);
+          setEng(updated);
+          setStages(buildStages(updated));
+          setSelectedIdx(null);
+        } catch (e: any) { Alert.alert('Error', e.message); }
+        finally { setAdvancing(false); }
+      }},
+    ]);
   };
 
   if (loading) {
@@ -228,210 +296,257 @@ export default function EngagementDetailScreen() {
     );
   }
 
-  const typeColor  = eng.type === 'buy' ? C.buy : C.sell;
-  const ini        = getInitials(contactName);
-  const totalDays  = stages.reduce((sum, s) => sum + s.dayDuration, 0);
-  const closedDays = stages.filter(s => s.status === 'done').reduce((sum, s) => sum + s.dayDuration, 0);
-  const openDays   = totalDays - closedDays;
-  const pct        = totalDays > 0 ? (closedDays / totalDays) * 100 : 0;
+  const typeColor      = eng.type === 'buy' ? C.buy : C.sell;
+  const ini            = getInitials(contactName);
+  const totalDays      = stages.reduce((sum, st) => sum + st.dayDuration, 0);
+  const closedDays     = stages.filter(st => st.status === 'done').reduce((sum, st) => sum + st.dayDuration, 0);
+  const openDays       = totalDays - closedDays;
+  const pct            = totalDays > 0 ? Math.round((closedDays / totalDays) * 100) : 0;
+  const completedCount = stages.filter(st => st.status === 'done').length;
+  const atEnd          = eng.currentStage >= eng.totalStages;
+
+  const isDone    = viewedStage?.status === 'done';
+  const isCurrent = viewedStage?.status === 'current';
+  const showMapBtn= viewedStage ? MAP_STAGE_NAMES.has(viewedStage.name) : false;
+  const desc      = viewedStage ? (STAGE_DESC[viewedStage.name] ?? 'Complete this step to move the engagement forward.') : '';
 
   return (
     <View style={[s.screen, { backgroundColor: C.bgBase }]}>
 
-      {/* ── Frozen header ───────────────────────────────────────────────── */}
-      <View style={[s.frozenHeader, { backgroundColor: C.bgSurface, borderBottomColor: C.bgBorder }]}>
-        <View style={s.heroRow}>
+      {/* ── App bar ─────────────────────────────────────────────────── */}
+      <View style={[s.appbar, { backgroundColor: C.bgSurface, borderBottomColor: C.bgBorder }]}>
+        <View style={s.appbarLeft}>
           <View style={[s.avatar, { backgroundColor: typeColor + '22', borderColor: typeColor }]}>
             <Text style={[s.avatarText, { color: typeColor }]}>{ini}</Text>
           </View>
-          <View style={{ flex: 1, marginLeft: Spacing.md }}>
-            <Text style={[s.clientName, { color: C.textPrimary }]}>{contactName}</Text>
-            <Text style={[Typography.xs, { color: C.textMuted }]}>
-              Stage {eng.currentStage} of {eng.totalStages} · {STAGE_NAMES[eng.currentStage] ?? ''}
-            </Text>
-          </View>
-          <View style={[s.typeBadge, { backgroundColor: typeColor + '22', borderColor: typeColor }]}>
-            <Text style={[s.typeBadgeText, { color: typeColor }]}>{eng.type.toUpperCase()}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.clientName, { color: C.textPrimary }]} numberOfLines={1}>{contactName}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={[s.typePip, { backgroundColor: typeColor + '22' }]}>
+                <Text style={[s.typePipText, { color: typeColor }]}>{eng.type.toUpperCase()}</Text>
+              </View>
+              <Text style={[Typography.xs, { color: C.textMuted }]}>
+                Stage {eng.currentStage}/{eng.totalStages}
+              </Text>
+            </View>
           </View>
         </View>
-
-        {/* Days-based progress bar */}
-        <View style={[s.progressTrack, { backgroundColor: C.bgBorder }]}>
-          <View style={[s.progressFill, { width: `${pct}%`, backgroundColor: typeColor }]} />
-        </View>
-        <Text style={[Typography.xs, { color: C.textMuted, textAlign: 'right', marginTop: 3 }]}>
-          {closedDays} / {totalDays} days
-        </Text>
-
-        {/* Stats strip */}
-        <View style={s.statsRow}>
-          <View style={s.stat}>
-            <Text style={[s.statValue, { color: C.success }]}>{closedDays}</Text>
-            <Text style={[Typography.xs, { color: C.textMuted }]}>Closed</Text>
-          </View>
-          <View style={[s.statDivider, { backgroundColor: C.bgBorder }]} />
-          <View style={s.stat}>
-            <Text style={[s.statValue, { color: typeColor }]}>{openDays}</Text>
-            <Text style={[Typography.xs, { color: C.textMuted }]}>Open</Text>
-          </View>
-          <View style={[s.statDivider, { backgroundColor: C.bgBorder }]} />
-          <View style={s.stat}>
-            <Text style={[s.statValue, { color: C.textPrimary }]}>{totalDays}</Text>
-            <Text style={[Typography.xs, { color: C.textMuted }]}>Total</Text>
-          </View>
-          <TouchableOpacity
-            style={[s.advBtn, { backgroundColor: typeColor, opacity: advancing || eng.currentStage >= eng.totalStages ? 0.5 : 1 }]}
-            onPress={handleAdvance}
-            disabled={advancing || eng.currentStage >= eng.totalStages}
-          >
-            {advancing
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Text style={s.advBtnText}>Advance ›</Text>
-            }
+        <View style={s.appbarActions}>
+          <TouchableOpacity style={[s.iconBtn, { borderColor: C.bgBorder }]}>
+            <Ionicons name="call-outline" size={18} color={C.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[s.iconBtn, { borderColor: C.bgBorder }]}>
+            <Ionicons name="chatbubble-outline" size={18} color={C.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── Scrollable timeline ─────────────────────────────────────────── */}
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={{ padding: Spacing.md, paddingBottom: 380 }}
+      {/* ── Progress ────────────────────────────────────────────────── */}
+      <View style={[s.progSection, { backgroundColor: C.bgSurface, borderBottomColor: C.bgBorder }]}>
+        <View style={s.progTop}>
+          <Text style={[s.progPct, { color: typeColor }]}>{pct}%</Text>
+          <Text style={[Typography.xs, { color: C.textMuted }]}>
+            {completedCount}/{eng.totalStages} stages · ~{openDays}d remaining
+          </Text>
+        </View>
+        <View style={[s.progTrack, { backgroundColor: C.bgBorder }]}>
+          <View style={[s.progFill, { width: `${pct}%` as any, backgroundColor: typeColor }]} />
+        </View>
+      </View>
+
+      {/* ── Step launcher → timeline ────────────────────────────────── */}
+      <TouchableOpacity
+        style={[s.launcher, { backgroundColor: C.bgElevated, borderColor: C.bgBorder }]}
+        onPress={() => setTimelineOpen(true)}
+        activeOpacity={0.75}
       >
-        <Text style={[Typography.label, { color: C.textMuted, marginBottom: Spacing.sm }]}>
-          Tap any step to set as current and view details
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.launcherEyebrow, { color: C.textMuted }]}>
+            {viewedStage
+              ? `Step ${viewedStage.stageNumber} of ${eng.totalStages} · tap to change`
+              : `Step ${eng.currentStage} of ${eng.totalStages} · tap to view`}
+          </Text>
+          <Text style={[s.launcherName, { color: C.textPrimary }]} numberOfLines={1}>
+            {viewedStage?.name ?? ''}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={typeColor} />
+      </TouchableOpacity>
 
-        <View style={[s.timelineCard, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
-          {stages.map((stage, i) => {
-            const isDone    = stage.status === 'done';
-            const isCurrent = stage.status === 'current';
-            const dotBg     = isDone ? C.success : isCurrent ? C.buy : 'transparent';
-            const dotBorder = isDone ? C.success : isCurrent ? C.buy : C.bgBorder2;
-            const nameColor = isDone ? C.textMuted : isCurrent ? C.textPrimary : C.textSecondary;
+      {/* ── Step content ────────────────────────────────────────────── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={s.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {viewedStage && (
+          <>
+            {/* Status pip */}
+            <View style={s.stephd}>
+              <View style={[s.statePip,
+                isDone    ? { backgroundColor: C.success + '22', borderColor: C.success } :
+                isCurrent ? { backgroundColor: typeColor + '22', borderColor: typeColor } :
+                            { backgroundColor: C.bgBorder, borderColor: C.bgBorder2 }
+              ]}>
+                <View style={[s.pipDot, {
+                  backgroundColor: isDone ? C.success : isCurrent ? typeColor : C.bgBorder2,
+                }]} />
+                <Text style={[s.statePipText, {
+                  color: isDone ? C.success : isCurrent ? typeColor : C.textMuted,
+                }]}>
+                  {isDone ? 'Complete' : isCurrent ? 'In progress' : 'Not started'}
+                </Text>
+              </View>
+              <Text style={[Typography.xs, { color: C.textMuted }]}>
+                Day {viewedStage.dayStart} · {viewedStage.dayDuration}d
+              </Text>
+            </View>
 
-            return (
+            {/* Description */}
+            <View style={[s.descCard, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+              <Text style={[s.sectionLabel, { color: C.textMuted }]}>ABOUT THIS STEP</Text>
+              <Text style={[Typography.sm, { color: C.textSecondary, lineHeight: 22 }]}>{desc}</Text>
+            </View>
+
+            {/* Map button */}
+            {showMapBtn && (
               <TouchableOpacity
-                key={stage.stageNumber}
-                activeOpacity={0.7}
-                onPress={() => handleRowTap(stage)}
-                onLayout={e => { rowYRef.current[stage.stageNumber] = e.nativeEvent.layout.y; }}
-                style={[
-                  s.stageRow,
-                  isCurrent && { backgroundColor: typeColor + '0A' },
-                  i < stages.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.bgBorder },
-                ]}
+                style={[s.mapBtn, { backgroundColor: C.primary + '12', borderColor: C.primary + '44' }]}
+                onPress={() => navigation.push('MarketMap', { title: viewedStage.name })}
+                activeOpacity={0.75}
               >
-                {/* Day column */}
-                <View style={s.dayCol}>
-                  <Text style={[s.dayLabel, { color: isDone ? C.textMuted : typeColor }]}>
-                    Day {stage.dayStart}
-                  </Text>
-                  <Text style={[s.durLabel, { color: C.textMuted }]}>+{stage.dayDuration}d</Text>
+                <View style={[s.mapBtnIcon, { backgroundColor: C.primary + '22' }]}>
+                  <Text style={{ fontSize: 18 }}>🗺</Text>
                 </View>
-
-                {/* Connector */}
-                <View style={s.connWrap}>
-                  <View style={[s.dot, { backgroundColor: dotBg, borderColor: dotBorder }]}>
-                    {isDone && <Ionicons name="checkmark" size={10} color="#fff" />}
-
-                  </View>
-                  {i < stages.length - 1 && (
-                    <View style={[s.connLine, { backgroundColor: isDone ? C.success + '55' : C.bgBorder }]} />
-                  )}
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.mapBtnTitle, { color: C.primary }]}>Open Bellevue Market Map</Text>
+                  <Text style={[Typography.xs, { color: C.textMuted }]}>644 listings · filter, compare, save</Text>
                 </View>
-
-                {/* Stage name + badges */}
-                <View style={s.stageNameCol}>
-                  <Text style={[s.stageName, {
-                    color: nameColor,
-                    fontWeight: isCurrent ? '700' : '400',
-                    textDecorationLine: isDone ? 'line-through' : 'none',
-                  }]}>
-                    {stage.stageNumber}. {stage.name}
-                  </Text>
-                  {isCurrent && (
-                    <View style={[s.curBadge, { backgroundColor: typeColor + '22' }]}>
-                      <Text style={[s.curBadgeText, { color: typeColor }]}>Current</Text>
-                    </View>
-                  )}
-                  {isDone && (
-                    <View style={[s.curBadge, { backgroundColor: C.success + '22' }]}>
-                      <Text style={[s.curBadgeText, { color: C.success }]}>Complete</Text>
-                    </View>
-                  )}
-                </View>
-
-                <Ionicons name="chevron-forward" size={14} color={C.textMuted} />
+                <Ionicons name="chevron-forward" size={16} color={C.primary} />
               </TouchableOpacity>
-            );
-          })}
-        </View>
+            )}
 
-        {/* Running total */}
-        <View style={[s.totalRow, { backgroundColor: C.bgElevated, borderColor: C.bgBorder }]}>
-          <Text style={[Typography.sm, { color: C.textSecondary }]}>Open stages total</Text>
-          <Text style={[s.totalValue, { color: typeColor }]}>{openDays} days</Text>
-        </View>
+            {/* Notes */}
+            <View style={[s.noteCard, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+              <Text style={[s.sectionLabel, { color: C.textMuted }]}>NOTES</Text>
+              <TextInput
+                value={note}
+                onChangeText={setNote}
+                placeholder="Add notes for this step..."
+                placeholderTextColor={C.textMuted}
+                multiline
+                numberOfLines={4}
+                style={[s.noteInput, { backgroundColor: C.bgElevated, borderColor: C.bgBorder, color: C.textPrimary }]}
+              />
+            </View>
+          </>
+        )}
       </ScrollView>
 
-      <StepDetailModal
-        stage={detailStage}
+      {/* ── Sticky footer ───────────────────────────────────────────── */}
+      <View style={[s.footer, { backgroundColor: C.bgSurface, borderTopColor: C.bgBorder }]}>
+        {viewedStage && (
+          <TouchableOpacity
+            style={[s.completeBtn, { backgroundColor: isDone ? C.warning : C.success }]}
+            onPress={isDone ? handleMarkIncomplete : handleMarkComplete}
+          >
+            <Ionicons
+              name={isDone ? 'arrow-undo-outline' : 'checkmark-circle-outline'}
+              size={18}
+              color="#fff"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={s.completeBtnText}>{isDone ? 'Mark Incomplete' : 'Mark Complete'}</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          style={[s.nextBtn, { backgroundColor: typeColor, opacity: advancing || atEnd ? 0.4 : 1 }]}
+          onPress={handleAdvance}
+          disabled={advancing || atEnd}
+        >
+          {advancing
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <Text style={s.nextBtnText}>Next →</Text>
+          }
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Timeline sheet ──────────────────────────────────────────── */}
+      <TimelineSheet
+        stages={stages}
         typeColor={typeColor}
-        visible={detailVisible}
-        onClose={() => setDetailVisible(false)}
-        onMarkComplete={handleMarkComplete}
-        onMarkIncomplete={handleMarkIncomplete}
+        viewedStageNum={viewedStage?.stageNumber ?? eng.currentStage}
+        visible={timelineOpen}
+        onClose={() => setTimelineOpen(false)}
+        onSelectStage={handleSelectStage}
       />
     </View>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  screen:       { flex: 1 },
-  centered:     { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  frozenHeader: { borderBottomWidth: 1, paddingTop: 52, paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
-  heroRow:      { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
-  avatar:       { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
-  avatarText:   { fontSize: 18, fontWeight: '700' },
-  clientName:   { fontSize: 17, fontWeight: '700', marginBottom: 2 },
-  typeBadge:    { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.sm, borderWidth: 1 },
-  typeBadgeText:{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  progressTrack:{ height: 6, borderRadius: 3, overflow: 'hidden', marginTop: Spacing.xs },
-  progressFill: { height: 6, borderRadius: 3 },
-  statsRow:     { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm, gap: Spacing.xs },
-  stat:         { flex: 1, alignItems: 'center' },
-  statValue:    { fontSize: 20, fontWeight: '800' },
-  statDivider:  { width: 1, height: 28 },
-  advBtn:       { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.md },
-  advBtnText:   { color: '#fff', fontSize: 13, fontWeight: '700' },
-  timelineCard: { borderRadius: Radius.md, borderWidth: 1, overflow: 'hidden', marginBottom: Spacing.sm },
-  stageRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: Spacing.xs },
-  dayCol:       { width: 54, alignItems: 'flex-end', paddingRight: Spacing.sm },
-  dayLabel:     { fontSize: 11, fontWeight: '700' },
-  durLabel:     { fontSize: 10 },
-  connWrap:     { width: 28, alignItems: 'center', alignSelf: 'stretch' },
-  dot:          { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  dotInner:     { width: 8, height: 8, borderRadius: 4 },
-  connLine:     { width: 2, flex: 1, minHeight: 8, marginTop: 2 },
-  stageNameCol: { flex: 1, paddingLeft: Spacing.xs },
-  stageName:    { fontSize: 14, lineHeight: 20 },
-  curBadge:     { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm, marginTop: 3 },
-  curBadgeText: { fontSize: 10, fontWeight: '700' },
-  totalRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
-  totalValue:   { fontSize: 18, fontWeight: '800' },
+  screen:          { flex: 1 },
+  centered:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  appbar:          { flexDirection: 'row', alignItems: 'center', paddingTop: 52, paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm, borderBottomWidth: 1 },
+  appbarLeft:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  avatar:          { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
+  avatarText:      { fontSize: 16, fontWeight: '700' },
+  clientName:      { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  typePip:         { paddingHorizontal: 7, paddingVertical: 2, borderRadius: Radius.sm },
+  typePipText:     { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  appbarActions:   { flexDirection: 'row', gap: 8 },
+  iconBtn:         { width: 36, height: 36, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+
+  progSection:     { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderBottomWidth: 1 },
+  progTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  progPct:         { fontSize: 15, fontWeight: '700' },
+  progTrack:       { height: 5, borderRadius: 3, overflow: 'hidden' },
+  progFill:        { height: 5, borderRadius: 3 },
+
+  launcher:        { flexDirection: 'row', alignItems: 'center', marginHorizontal: Spacing.md, marginTop: Spacing.md, padding: Spacing.md, borderRadius: Radius.lg, borderWidth: 1, gap: Spacing.sm },
+  launcherEyebrow: { fontSize: 11, fontWeight: '500', marginBottom: 3 },
+  launcherName:    { fontSize: 17, fontWeight: '700' },
+
+  scrollContent:   { padding: Spacing.md, paddingBottom: 120 },
+
+  stephd:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
+  statePip:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.full, borderWidth: 1, gap: 6 },
+  pipDot:          { width: 7, height: 7, borderRadius: 4 },
+  statePipText:    { fontSize: 12, fontWeight: '600' },
+
+  descCard:        { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.sm },
+  sectionLabel:    { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 },
+
+  mapBtn:          { flexDirection: 'row', alignItems: 'center', borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.sm, gap: Spacing.sm },
+  mapBtnIcon:      { width: 38, height: 38, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  mapBtnTitle:     { fontSize: 14, fontWeight: '600', marginBottom: 2 },
+
+  noteCard:        { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md },
+  noteInput:       { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.sm, minHeight: 80, textAlignVertical: 'top', fontSize: 14 },
+
+  footer:          { flexDirection: 'row', padding: Spacing.md, borderTopWidth: 1, gap: Spacing.sm, paddingBottom: 32 },
+  completeBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: Radius.md, padding: Spacing.md },
+  completeBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  nextBtn:         { paddingHorizontal: Spacing.lg, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', padding: Spacing.md },
+  nextBtnText:     { color: '#fff', fontSize: 14, fontWeight: '700' },
 });
 
-const md = StyleSheet.create({
+const ts = StyleSheet.create({
   backdrop:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet:       { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, paddingBottom: 48, borderTopWidth: 1 },
-  handle:      { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.md },
-  stageHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
-  stageDot:    { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 2, marginRight: Spacing.md },
-  stageNum:    { fontSize: 16, fontWeight: '800' },
-  stageName:   { fontSize: 17, fontWeight: '700' },
+  sheet:       { maxHeight: '82%', borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderTopWidth: 2, paddingTop: Spacing.sm },
+  grip:        { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.sm },
+  header:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
+  title:       { flex: 1, fontSize: 17, fontWeight: '700' },
   closeBtn:    { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  sectionLabel:{ fontSize: 11, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6, marginTop: Spacing.xs },
-  noteInput:   { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, height: 80, textAlignVertical: 'top', fontSize: 14, marginBottom: Spacing.md },
-  markBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: Radius.md, padding: Spacing.md },
-  markBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  row:         { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: Spacing.lg, paddingVertical: 12, borderBottomWidth: 1 },
+  connWrap:    { width: 28, alignItems: 'center', alignSelf: 'stretch', marginRight: 8 },
+  dot:         { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  line:        { width: 2, flex: 1, minHeight: 6, marginTop: 2 },
+  rowNum:      { fontSize: 12, fontWeight: '600', width: 22 },
+  rowName:     { fontSize: 14 },
+  curPip:      { paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm, borderWidth: 1 },
+  curPipText:  { fontSize: 10, fontWeight: '700' },
+  dayMeta:     { fontSize: 11, marginLeft: 4 },
 });

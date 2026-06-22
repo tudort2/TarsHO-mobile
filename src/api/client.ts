@@ -129,6 +129,7 @@ export function normalizeEngagement(raw: any): Engagement {
     brokerName: raw.broker_name,
     contactName: raw.contact_name,
     notes: raw.notes,
+    propertyId: raw.property_id ? String(raw.property_id) : undefined,
   };
 }
 
@@ -177,6 +178,9 @@ export const api = {
     }) => request<any>('/api/properties', { method: 'POST', body: JSON.stringify(data) })
          .then(normalizeProperty),
 
+    delete: (id: string) =>
+      request<{ ok: boolean }>(`/api/properties/${id}`, { method: 'DELETE' }),
+
     refreshAvm: (id: string) =>
       request<any>(`/api/properties/${id}/refresh-avm`, { method: 'POST' }),
 
@@ -218,6 +222,9 @@ export const api = {
     }>) => request<any>(`/api/contacts/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
          .then(normalizeContact),
 
+    delete: (id: string) =>
+      request<{ ok: boolean }>(`/api/contacts/${id}`, { method: 'DELETE' }),
+
     logInteraction: (id: string, type: string, summary: string) =>
       request<any>(`/api/contacts/${id}/interactions`, {
         method: 'POST',
@@ -232,9 +239,21 @@ export const api = {
     get: (id: string) =>
       request<any>(`/api/engagements/${id}`).then(normalizeEngagement),
 
+    create: (data: {
+      type: 'buy' | 'sell';
+      propertyId?: string;
+      brokerId?: string;
+      budgetMin?: number;
+      budgetMax?: number;
+    }) => request<any>('/api/engagements', { method: 'POST', body: JSON.stringify(data) })
+         .then(normalizeEngagement),
+
     advance: (id: string) =>
       request<any>(`/api/engagements/${id}/advance`, { method: 'PATCH' })
         .then(normalizeEngagement),
+
+    delete: (id: string) =>
+      request<{ ok: boolean }>(`/api/engagements/${id}`, { method: 'DELETE' }),
   },
 
   market: {

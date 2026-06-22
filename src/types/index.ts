@@ -111,6 +111,7 @@ export interface Engagement {
   brokerName?: string;
   contactName?: string;
   notes?: string;
+  propertyId?: string;
 }
 
 export interface EngagementStage {

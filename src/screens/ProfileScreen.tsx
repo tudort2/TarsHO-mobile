@@ -11,13 +11,26 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { normalizeUser } from '../context/AuthContext';
 
-const ROLE_LABELS: Record<Role, string> = {
+const ROLE_LABELS: Record<string, string> = {
   homeowner: 'Homeowner',
-  broker: 'Broker',
-  provider: 'Provider',
-  admin: 'Admin',
+  broker:    'Broker',
+  provider:  'Provider',
+  admin:     'Admin',
 };
 
+const ROLE_ICONS: Record<string, string> = {
+  homeowner: 'home-outline',
+  broker:    'briefcase-outline',
+  provider:  'construct-outline',
+};
+
+const ROLE_DESC: Record<string, string> = {
+  homeowner: 'Manage your properties and home journey',
+  broker:    'Manage clients and their engagements',
+  provider:  'Manage work orders and services',
+};
+
+// ── Change Password modal ─────────────────────────────────────────────────────
 function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const C = useColors();
   const [current, setCurrent] = useState('');
@@ -27,8 +40,8 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
 
   const handleSubmit = async () => {
     if (!current || !next || !confirm) { Alert.alert('Error', 'All fields required.'); return; }
-    if (next !== confirm) { Alert.alert('Error', 'New passwords do not match.'); return; }
-    if (next.length < 8)  { Alert.alert('Error', 'Password must be at least 8 characters.'); return; }
+    if (next !== confirm)              { Alert.alert('Error', 'New passwords do not match.'); return; }
+    if (next.length < 8)              { Alert.alert('Error', 'Password must be at least 8 characters.'); return; }
     setLoading(true);
     try {
       await api.auth.changePassword(current, next);
@@ -76,14 +89,28 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
   );
 }
 
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const C = useColors();
   const { mode, setMode } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, switchRole } = useAuth();
   const [pwModalVisible, setPwModalVisible] = useState(false);
+  const [switchingRole, setSwitchingRole]   = useState<string | null>(null);
   const isDark = mode === 'dark';
 
   if (!user) return null;
+
+  const handleRoleSelect = async (role: Role) => {
+    if (role === user.role) return;
+    setSwitchingRole(role);
+    try {
+      await switchRole(role);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not switch role.');
+    } finally {
+      setSwitchingRole(null);
+    }
+  };
 
   const handleSignOut = () =>
     Alert.alert('Sign Out', 'Are you sure?', [
@@ -91,9 +118,15 @@ export default function ProfileScreen() {
       { text: 'Sign Out', style: 'destructive', onPress: logout },
     ]);
 
+  // Show the three main roles; filter to only roles the user has
+  const visibleRoles = (['homeowner', 'broker', 'provider'] as Role[]).filter(
+    r => user.roles.includes(r)
+  );
+
   return (
     <ScrollView style={[styles.screen, { backgroundColor: C.bgBase }]} contentContainerStyle={{ paddingBottom: 48 }}>
-      {/* Avatar */}
+
+      {/* ── Hero ──────────────────────────────────────────────────────── */}
       <View style={[styles.heroSection, { backgroundColor: C.bgSurface, borderBottomColor: C.bgBorder }]}>
         <View style={[styles.avatarFallback, { backgroundColor: C.primary }]}>
           <Text style={styles.avatarInitial}>{user.name[0]}</Text>
@@ -101,26 +134,69 @@ export default function ProfileScreen() {
         <Text style={[styles.userName, { color: C.textPrimary }]}>{user.name}</Text>
         <Text style={[Typography.sm, { color: C.textMuted }]}>{user.email}</Text>
         {user.brokerage ? <Text style={[Typography.sm, { color: C.textMuted, marginTop: 4 }]}>{user.brokerage}</Text> : null}
+      </View>
 
-        <View style={styles.roleChips}>
-          {(['homeowner', 'broker', 'provider', 'admin'] as Role[])
-            .filter(r => user.roles.includes(r))
-            .map(role => (
-              <View key={role} style={[
-                styles.roleChip,
-                { backgroundColor: C.bgElevated, borderColor: C.bgBorder },
-                user.role === role && { borderColor: C.primary, backgroundColor: C.primary + '22' },
-              ]}>
-                <Text style={[styles.roleChipText, { color: user.role === role ? C.primary : C.textMuted }]}>
-                  {ROLE_LABELS[role]}
-                </Text>
-              </View>
-            ))}
+      {/* ── Role ──────────────────────────────────────────────────────── */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Role</Text>
+        <View style={[styles.card, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
+          {visibleRoles.map((role, i) => {
+            const isActive    = user.role === role;
+            const isLoading   = switchingRole === role;
+            const isLast      = i === visibleRoles.length - 1;
+            const roleColor   = isActive ? C.primary : C.textMuted;
+
+            return (
+              <TouchableOpacity
+                key={role}
+                style={[
+                  styles.roleRow,
+                  !isLast && { borderBottomWidth: 1, borderBottomColor: C.bgBorder },
+                  isActive && { backgroundColor: C.primary + '08' },
+                ]}
+                onPress={() => handleRoleSelect(role)}
+                activeOpacity={0.75}
+                disabled={isLoading !== false || switchingRole !== null}
+              >
+                {/* Radio dot */}
+                <View style={[styles.radioDot, { borderColor: roleColor }, isActive && { backgroundColor: C.primary }]}>
+                  {isActive && <View style={styles.radioDotInner} />}
+                </View>
+
+                {/* Icon */}
+                <View style={[styles.roleIcon, { backgroundColor: isActive ? C.primary + '18' : C.bgElevated }]}>
+                  <Ionicons
+                    name={(ROLE_ICONS[role] ?? 'person-outline') as any}
+                    size={18}
+                    color={roleColor}
+                  />
+                </View>
+
+                {/* Text */}
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.roleLabel, { color: isActive ? C.primary : C.textPrimary }]}>
+                    {ROLE_LABELS[role]}
+                  </Text>
+                  <Text style={[Typography.xs, { color: C.textMuted }]} numberOfLines={1}>
+                    {ROLE_DESC[role]}
+                  </Text>
+                </View>
+
+                {/* Spinner or checkmark */}
+                {isLoading
+                  ? <ActivityIndicator size="small" color={C.primary} />
+                  : isActive
+                    ? <Ionicons name="checkmark-circle" size={20} color={C.primary} />
+                    : null
+                }
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
-      {/* Appearance */}
-      <View style={[styles.section]}>
+      {/* ── Appearance ────────────────────────────────────────────────── */}
+      <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Appearance</Text>
         <View style={[styles.card, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
           <View style={styles.listRow}>
@@ -138,13 +214,13 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Account settings */}
+      {/* ── Account ───────────────────────────────────────────────────── */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: C.textMuted }]}>Account</Text>
         <View style={[styles.card, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
           {[
-            { icon: 'lock-closed-outline', label: 'Change Password', onPress: () => setPwModalVisible(true) },
-            { icon: 'notifications-outline', label: 'Notifications', onPress: () => Alert.alert('Coming soon') },
+            { icon: 'lock-closed-outline',   label: 'Change Password',  onPress: () => setPwModalVisible(true) },
+            { icon: 'notifications-outline', label: 'Notifications',    onPress: () => Alert.alert('Coming soon') },
           ].map((item, i) => (
             <TouchableOpacity
               key={i}
@@ -161,7 +237,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* App links */}
+      {/* ── App links ─────────────────────────────────────────────────── */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: C.textMuted }]}>App</Text>
         <View style={[styles.card, { backgroundColor: C.bgSurface, borderColor: C.bgBorder }]}>
@@ -185,6 +261,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* ── Sign out ──────────────────────────────────────────────────── */}
       <View style={styles.section}>
         <TouchableOpacity
           style={[styles.signOutBtn, { backgroundColor: C.bgSurface, borderColor: C.danger + '44' }]}
@@ -208,18 +285,27 @@ const styles = StyleSheet.create({
   avatarFallback:{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
   avatarInitial: { color: '#fff', fontSize: 36, fontWeight: '700' },
   userName:      { fontSize: 22, fontWeight: '700', marginBottom: 4 },
-  roleChips:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: Spacing.md, justifyContent: 'center' },
-  roleChip:      { paddingHorizontal: 12, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1 },
-  roleChipText:  { fontSize: 12, fontWeight: '500' },
+
   section:       { paddingHorizontal: Spacing.md, paddingTop: Spacing.lg },
   sectionTitle:  { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: Spacing.sm },
   card:          { borderRadius: Radius.md, borderWidth: 1, overflow: 'hidden' },
-  listRow:       { flexDirection: 'row', alignItems: 'center', padding: Spacing.md },
-  listIcon:      { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md },
-  listLabel:     { flex: 1, fontSize: 15 },
-  signOutBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1 },
-  signOutText:   { fontSize: 15, fontWeight: '600' },
-  version:       { fontSize: 11, textAlign: 'center', marginTop: Spacing.xl },
+
+  // Role radio rows
+  roleRow:   { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.sm },
+  radioDot:  { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  radioDotInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' },
+  roleIcon:  { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  roleLabel: { fontSize: 15, fontWeight: '600', marginBottom: 1 },
+
+  // Generic list rows
+  listRow:   { flexDirection: 'row', alignItems: 'center', padding: Spacing.md },
+  listIcon:  { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md },
+  listLabel: { flex: 1, fontSize: 15 },
+
+  signOutBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1 },
+  signOutText: { fontSize: 15, fontWeight: '600' },
+  version:     { fontSize: 11, textAlign: 'center', marginTop: Spacing.xl },
+
   backdrop:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   sheet:       { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.lg, paddingBottom: 48, borderTopWidth: 1 },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.md },

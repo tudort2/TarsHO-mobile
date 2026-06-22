@@ -2,6 +2,7 @@
   "expo": {
     "name": "TARS",
     "slug": "tars-app",
+    "owner": "tudor.toma.team",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -12,5 +13,16 @@
     "android": {
       "package": "com.tarsusa.homeownership"
     },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c7136656-ad3a-4921-9f8d-9c8580d87360"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c7136656-ad3a-4921-9f8d-9c8580d87360"
+      }
+    }
   }
 }
