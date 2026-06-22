@@ -32,15 +32,13 @@ if (Test-Path ".git\index.lock")  { Remove-Item ".git\index.lock"  -Force }
 if (Test-Path ".git\HEAD.lock")   { Remove-Item ".git\HEAD.lock"   -Force }
 
 git fetch origin
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: git fetch failed" -ForegroundColor Red
-    Read-Host "Press Enter to exit"; exit 1
-}
 
-# Discard local changes so checkout never conflicts
+# Wipe ALL local changes before switching branches — prevents merge conflicts
+git checkout -- .
+git clean -fd | Out-Null
+
 git checkout $Branch
 git reset --hard "origin/$Branch"
-git clean -fd | Out-Null
 
 Write-Host "OK -- on branch $Branch" -ForegroundColor Green
 Write-Host ""
