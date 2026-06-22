@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "TARS",
-    "slug": "tars-app",
+    "name": "TARS v1",
+    "slug": "tars-ui-v1",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.tarsusa.homeownership"
+      "bundleIdentifier": "com.tarsusa.app.v1"
     },
     "android": {
-      "package": "com.tarsusa.homeownership"
+      "package": "com.tarsusa.app.v1"
     },
   }
 }
