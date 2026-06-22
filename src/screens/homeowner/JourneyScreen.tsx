@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useColors } from '../../context/ThemeContext';
@@ -80,7 +81,7 @@ const BUY_STAGE_DATA: Record<string, StageInfo> = {
     description: 'We pull live NWMLS listings matching your profile and overlay them on TerraPlot.',
     steps: [
       { title: 'Set saved-search filters in TerraPlot', timing: 'Set up once' },
-      { title: 'Shortlist 5–8 candidate listings',       timing: 'Ongoing', priority: 'M' },
+      { title: 'Shortlist 5-8 candidate listings',      timing: 'Ongoing', priority: 'M' },
       { title: 'Schedule first round of showings',      timing: 'Weekends recommended', priority: 'L' },
       { title: 'Refresh pre-approval letter',           timing: 'Before making offers', priority: 'H' },
     ],
@@ -148,15 +149,15 @@ const BUY_STAGE_DATA: Record<string, StageInfo> = {
   'House Inspection': {
     description: "Understand the home's condition.",
     steps: [
-      { title: 'Hire an inspector',              timing: 'Within inspection period' },
+      { title: 'Hire an inspector',               timing: 'Within inspection period' },
       { title: 'Review report & request repairs', timing: 'Within inspection period' },
     ],
   },
   'Final Walk-through': {
     description: 'Verify condition right before closing.',
     steps: [
-      { title: 'Confirm repairs completed', timing: '1–2 days before closing' },
-      { title: 'Verify readiness to close', timing: '1–2 days before closing' },
+      { title: 'Confirm repairs completed', timing: '1-2 days before closing' },
+      { title: 'Verify readiness to close', timing: '1-2 days before closing' },
     ],
   },
   'Verification': {
@@ -169,16 +170,16 @@ const BUY_STAGE_DATA: Record<string, StageInfo> = {
   'Closing': {
     description: 'Sign, fund, record — then keys.',
     steps: [
-      { title: 'Sign closing documents',    timing: 'Closing day', priority: 'H' },
+      { title: 'Sign closing documents',      timing: 'Closing day', priority: 'H' },
       { title: 'Funds wired & deed recorded', timing: 'Closing day' },
-      { title: 'Receive keys',              timing: 'After recording' },
+      { title: 'Receive keys',                timing: 'After recording' },
     ],
   },
   'After Sale Service': {
     description: 'Make your new home "sticky" in TARS.',
     steps: [
-      { title: 'Set up your Home Digest',         timing: 'First week after closing' },
-      { title: 'Turn on maintenance reminders',   timing: 'First week after closing' },
+      { title: 'Set up your Home Digest',       timing: 'First week after closing' },
+      { title: 'Turn on maintenance reminders', timing: 'First week after closing' },
     ],
   },
 };
@@ -207,8 +208,8 @@ const SELL_STAGE_DATA: Record<string, StageInfo> = {
   'Pre-Inspection': {
     description: 'Surface issues early to avoid surprises.',
     steps: [
-      { title: 'Book pre-inspection',              timing: 'Before listing', priority: 'M' },
-      { title: 'Review findings & plan repairs',   timing: 'After inspection report' },
+      { title: 'Book pre-inspection',            timing: 'Before listing', priority: 'M' },
+      { title: 'Review findings & plan repairs', timing: 'After inspection report' },
     ],
   },
   'Prepare for Listing': {
@@ -230,10 +231,10 @@ const SELL_STAGE_DATA: Record<string, StageInfo> = {
   'Listing Property': {
     description: 'We submit to NWMLS and syndicate. Two items need your sign-off before going live.',
     steps: [
-      { title: 'Sign the Listing Agreement',   timing: 'Required before go-live', priority: 'H' },
-      { title: 'Approve marketing photos',     timing: '12 photos by Astor Studios', priority: 'M' },
-      { title: 'Stage the unit',               timing: 'Completed before photos' },
-      { title: 'Order signpost',               timing: 'Installed before go-live' },
+      { title: 'Sign the Listing Agreement', timing: 'Required before go-live', priority: 'H' },
+      { title: 'Approve marketing photos',   timing: '12 photos by Astor Studios', priority: 'M' },
+      { title: 'Stage the unit',             timing: 'Completed before photos' },
+      { title: 'Order signpost',             timing: 'Installed before go-live' },
     ],
     tools: ['QCMA · Listing comps', 'TerraPlot · Days-on-market', 'AdX'],
   },
@@ -261,8 +262,8 @@ const SELL_STAGE_DATA: Record<string, StageInfo> = {
   'Offer Negotiation': {
     description: 'Counter and refine terms.',
     steps: [
-      { title: 'Counter or accept offers',          timing: 'Within offer deadline' },
-      { title: 'Negotiate terms & contingencies',   timing: 'Until mutual acceptance' },
+      { title: 'Counter or accept offers',        timing: 'Within offer deadline' },
+      { title: 'Negotiate terms & contingencies', timing: 'Until mutual acceptance' },
     ],
   },
   'Mutual Agreement': {
@@ -405,18 +406,25 @@ function StageRow({
     <View>
       {/* ── Rail + tile row ─────────────────────────────────────────────── */}
       <View style={styles.stageRow}>
-        {/* Timeline rail */}
+        {/* Timeline rail — dot is tappable to select/expand the stage */}
         <View style={styles.rail}>
-          <View style={[
-            styles.dot,
-            isCompleted
-              ? { backgroundColor: C.success, borderColor: C.success,   borderWidth: 2 }
-              : isActive
-              ? { backgroundColor: C.bgSurface, borderColor: C.primary, borderWidth: 3 }
-              : { backgroundColor: C.bgBorder,  borderColor: C.bgBorder, borderWidth: 2 },
-          ]}>
-            {isCompleted && <Ionicons name="checkmark" size={12} color="#fff" />}
-          </View>
+          <TouchableOpacity
+            onPress={onToggleExpand}
+            activeOpacity={0.7}
+            style={[
+              styles.dot,
+              // expanded (selected) or active → blue ring; completed (not expanded) → green
+              expanded
+                ? { backgroundColor: C.bgSurface, borderColor: C.primary, borderWidth: 3 }
+                : isCompleted
+                ? { backgroundColor: C.success,   borderColor: C.success,  borderWidth: 2 }
+                : isActive
+                ? { backgroundColor: C.bgSurface, borderColor: C.primary,  borderWidth: 3 }
+                : { backgroundColor: C.bgBorder,  borderColor: C.bgBorder, borderWidth: 2 },
+            ]}
+          >
+            {isCompleted && !expanded && <Ionicons name="checkmark" size={12} color="#fff" />}
+          </TouchableOpacity>
           <View style={[styles.line, { backgroundColor: isCompleted ? C.success : C.bgBorder }]} />
         </View>
 
@@ -619,6 +627,53 @@ export default function JourneyScreen() {
   const [localDone,   setLocalDone]   = useState<Set<number>>(new Set());
   const [advancing,   setAdvancing]   = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [stateReady,  setStateReady]  = useState(false);
+
+  // ── Persist & restore state across navigations ───────────────────────────
+  const KEYS = {
+    tab:      '@tars_journey_tab',
+    expanded: (id: number) => `@tars_journey_exp_${id}`,
+    done:     (id: number) => `@tars_journey_done_${id}`,
+  };
+
+  // Restore tab on mount (journeyType prop overrides)
+  useEffect(() => {
+    if (journeyType) { setTab(journeyType); setStateReady(true); return; }
+    AsyncStorage.getItem(KEYS.tab).then(v => {
+      if (v === 'buy' || v === 'sell') setTab(v);
+      setStateReady(true);
+    }).catch(() => setStateReady(true));
+  }, []);
+
+  // Save tab when it changes
+  useEffect(() => {
+    if (stateReady) AsyncStorage.setItem(KEYS.tab, tab).catch(() => {});
+  }, [tab, stateReady]);
+
+  // Restore expandedIds + localDone when engagement loads
+  const activeEng = engagements.find(e => e.type === tab);
+  useEffect(() => {
+    if (!activeEng) return;
+    Promise.all([
+      AsyncStorage.getItem(KEYS.expanded(activeEng.id)),
+      AsyncStorage.getItem(KEYS.done(activeEng.id)),
+    ]).then(([expRaw, doneRaw]) => {
+      if (expRaw)  setExpandedIds(new Set(JSON.parse(expRaw) as number[]));
+      if (doneRaw) setLocalDone(new Set(JSON.parse(doneRaw) as number[]));
+    }).catch(() => {});
+  }, [activeEng?.id]);
+
+  // Save expandedIds whenever it changes
+  useEffect(() => {
+    if (!activeEng) return;
+    AsyncStorage.setItem(KEYS.expanded(activeEng.id), JSON.stringify([...expandedIds])).catch(() => {});
+  }, [expandedIds, activeEng?.id]);
+
+  // Save localDone whenever it changes
+  useEffect(() => {
+    if (!activeEng) return;
+    AsyncStorage.setItem(KEYS.done(activeEng.id), JSON.stringify([...localDone])).catch(() => {});
+  }, [localDone, activeEng?.id]);
 
   const load = useCallback(async () => {
     try {
@@ -628,7 +683,7 @@ export default function JourneyScreen() {
         active.map(e => api.engagements.get(e.id).catch(() => e))
       );
       setEngagements(detailed);
-      setLocalDone(new Set());
+      // Note: do NOT reset localDone here — restored from AsyncStorage
     } catch { }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -636,7 +691,6 @@ export default function JourneyScreen() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (journeyType) setTab(journeyType); }, [journeyType]);
 
-  const activeEng = engagements.find(e => e.type === tab);
   const stages    = activeEng ? buildStages(activeEng) : [];
   const completed = stages.filter(s => s.status === 'completed' || localDone.has(s.id)).length;
   const typeColor = tab === 'buy' ? C.buy : C.sell;
@@ -693,7 +747,7 @@ export default function JourneyScreen() {
               onPress={() => setTab(t)}
             >
               <Text style={[styles.tabText, { color: tab === t ? (t === 'buy' ? C.buy : C.sell) : C.textMuted }]}>
-                {t === 'buy' ? '🏠 Buy Journey' : '🔑 Sell Journey'}
+                {t === 'buy' ? 'Buy Journey' : 'Sell Journey'}
               </Text>
             </TouchableOpacity>
           ))}
@@ -787,8 +841,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom:   Spacing.sm,
   },
-  journeyTitle: { fontSize: 17, fontWeight: '700' },
-  expandAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  journeyTitle:  { fontSize: 17, fontWeight: '700' },
+  expandAllBtn:  { flexDirection: 'row', alignItems: 'center', gap: 3 },
   expandAllText: { fontSize: 13, fontWeight: '600' },
 
   progressSummary: { marginBottom: Spacing.md },
@@ -803,19 +857,19 @@ const styles = StyleSheet.create({
 
   // Tile
   stageCard: {
-    flex:         1,
-    borderRadius: Radius.md,
+    flex:              1,
+    borderRadius:      Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical:   11,
-    marginBottom: Spacing.sm,
-    borderWidth:  1,
+    marginBottom:      Spacing.sm,
+    borderWidth:       1,
   },
-  titleRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  titleLeft:  { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
-  titleRight: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
-  stageTitle: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
-  dayChip:    { paddingHorizontal: 7, paddingVertical: 2, borderRadius: Radius.full },
-  dayChipText:{ fontSize: 11, fontWeight: '600' },
+  titleRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  titleLeft:   { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
+  titleRight:  { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
+  stageTitle:  { fontSize: 14, fontWeight: '600', flexShrink: 1 },
+  dayChip:     { paddingHorizontal: 7, paddingVertical: 2, borderRadius: Radius.full },
+  dayChipText: { fontSize: 11, fontWeight: '600' },
 
   // Inline detail panel
   detailPanel: {
@@ -826,7 +880,7 @@ const styles = StyleSheet.create({
     marginTop:    -4,
   },
 
-  // Panel action buttons row (no title — buttons sit side by side)
+  // Panel action buttons
   panelBtnsRow: {
     flexDirection: 'row',
     alignItems:    'center',
@@ -854,16 +908,16 @@ const styles = StyleSheet.create({
   mapBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: 10, paddingVertical: 8, marginBottom: Spacing.sm },
   mapBtnText: { flex: 1, fontSize: 13, fontWeight: '700' },
 
-  // Section labels (Steps / Tools)
+  // Section labels
   sectionLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
 
   // Steps
-  stepRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 9 },
-  checkbox:    { width: 20, height: 20, borderRadius: 4, borderWidth: 2, marginRight: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  stepContent: { flex: 1, marginRight: 6 },
-  stepLabel:   { fontSize: 13, lineHeight: 18 },
+  stepRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 9 },
+  checkbox:      { width: 20, height: 20, borderRadius: 4, borderWidth: 2, marginRight: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  stepContent:   { flex: 1, marginRight: 6 },
+  stepLabel:     { fontSize: 13, lineHeight: 18 },
   stepLabelDone: { textDecorationLine: 'line-through' },
-  stepTiming:  { fontSize: 11, marginTop: 1 },
+  stepTiming:    { fontSize: 11, marginTop: 1 },
 
   // Priority pill
   priPill:     { paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.full, flexShrink: 0 },
@@ -874,4 +928,11 @@ const styles = StyleSheet.create({
   toolName: { fontSize: 12, fontWeight: '500' },
 
   // Empty state
-  emptyState: { borderRadius: Radius.lg, bord
+  emptyState: {
+    borderRadius: Radius.lg,
+    borderWidth:  1,
+    padding:      Spacing.xl,
+    alignItems:   'center' as const,
+    marginTop:    Spacing.xl,
+  },
+});
