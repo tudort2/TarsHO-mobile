@@ -296,4 +296,29 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical:   6,
     borderRadius:      Radius.full,
-    border
+    borderWidth:       1,
+  },
+  pillLabel:  { fontSize: 13, fontWeight: '600' },
+  countLabel: { fontSize: 12, color: undefined, marginLeft: 'auto' as any },
+  center:     { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  mapVisible: { flex: 1 },
+  mapHidden:  { position: 'absolute', width: 1, height: 1, opacity: 0 },
+});
+
+const card = StyleSheet.create({
+  wrap:       {
+    borderRadius:      Radius.md,
+    borderWidth:       1,
+    marginHorizontal:  Spacing.md,
+    marginBottom:      Spacing.sm,
+    padding:           Spacing.md,
+  },
+  headerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  price:      { fontSize: 18, fontWeight: '700' },
+  badge:      { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.full },
+  badgeText:  { fontSize: 11, fontWeight: '700' },
+  addr:       { fontSize: 13, marginBottom: 8 },
+  statsRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  stat:       { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  statText:   { fontSize: 12 },
+});

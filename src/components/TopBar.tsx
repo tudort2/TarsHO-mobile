@@ -165,4 +165,5 @@ const styles = StyleSheet.create({
     borderWidth:    1,
     zIndex:         1,
   },
-  profileInitials: { fontSize: 12, fo
+  profileInitials: { fontSize: 12, fontWeight: '700' },
+});
