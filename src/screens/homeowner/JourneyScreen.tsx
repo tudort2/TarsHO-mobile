@@ -928,4 +928,19 @@ const styles = StyleSheet.create({
   stepTiming:    { fontSize: 11, marginTop: 1 },
 
   // Priority pill
-  priPill:     { paddingHorizontal: 6, paddingVertical: 2, borderRadius: Rad
+  priPill:     { paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.full, flexShrink: 0 },
+  priPillText: { fontSize: 10, fontWeight: '700' },
+
+  // Tools
+  toolRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1 },
+  toolName: { fontSize: 12, fontWeight: '500' },
+
+  // Empty state
+  emptyState: {
+    borderRadius: Radius.lg,
+    borderWidth:  1,
+    padding:      Spacing.xl,
+    alignItems:   'center' as const,
+    marginTop:    Spacing.xl,
+  },
+});
