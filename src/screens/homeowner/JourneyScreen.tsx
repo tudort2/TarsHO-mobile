@@ -414,13 +414,13 @@ function StageRow({
             activeOpacity={0.7}
             style={[
               styles.dot,
-              // expanded (selected) or active → blue ring; completed (not expanded) → green
+              // blue ring ONLY when expanded; otherwise completed=green, active/pending=white/gray
               expanded
                 ? { backgroundColor: C.bgSurface, borderColor: C.primary, borderWidth: 3 }
                 : isCompleted
                 ? { backgroundColor: C.success,   borderColor: C.success,  borderWidth: 2 }
                 : isActive
-                ? { backgroundColor: C.bgSurface, borderColor: C.primary,  borderWidth: 3 }
+                ? { backgroundColor: C.bgSurface, borderColor: C.bgBorder, borderWidth: 2 }
                 : { backgroundColor: C.bgBorder,  borderColor: C.bgBorder, borderWidth: 2 },
             ]}
           >
@@ -806,8 +806,8 @@ export default function JourneyScreen() {
 
             {/* Stage list */}
             {stages.map((stage, idx) => {
-              // Running total of days from all preceding stages that are NOT yet completed
-              const dayOffset = stages.slice(0, idx).reduce((sum, s) => {
+              // Running total including this stage: sum of durations of stages[0..idx] that are NOT completed
+              const dayOffset = stages.slice(0, idx + 1).reduce((sum, s) => {
                 const done = s.status === 'completed' || localDone.has(s.id);
                 return done ? sum : sum + s.duration;
               }, 0);
