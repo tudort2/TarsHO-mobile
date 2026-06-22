@@ -433,7 +433,7 @@ function StageRow({
         <TouchableOpacity
           style={[
             styles.stageCard,
-            { backgroundColor: C.bgSurface, borderColor: isActive ? C.primary : C.bgBorder },
+            { backgroundColor: C.bgSurface, borderColor: expanded ? C.primary : C.bgBorder },
           ]}
           onPress={onToggleExpand}
           activeOpacity={0.85}
@@ -476,7 +476,7 @@ function StageRow({
       {expanded && (
         <View style={[
           styles.detailPanel,
-          { marginLeft: RAIL_W, backgroundColor: C.bgSurface, borderColor: isActive ? C.primary + '55' : C.bgBorder },
+          { marginLeft: RAIL_W, backgroundColor: C.bgSurface, borderColor: C.bgBorder },
         ]}>
 
           {/* Action buttons row */}
