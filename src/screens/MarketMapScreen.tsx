@@ -18,17 +18,14 @@ export default function MarketMapScreen() {
   const route      = useRoute<any>();
   const webRef     = useRef<WebView>(null);
 
-  // Params
   const screenTitle:    string  = route.params?.title            ?? 'Market Research';
   const hideHeader:     boolean = route.params?.hideHeader        ?? false;
   const autoOpenSaved:  boolean = route.params?.autoOpenSaved     ?? false;
   const hideSavedButton: boolean = route.params?.hideSavedButton  ?? false;
 
-  // Tell the map which theme to use; optionally hide the Saved button or open the Saved panel
   const injectTheme = useCallback(() => {
     const js = `window.postMessage(JSON.stringify({tarsTheme:'${mode}'}), '*'); true;`;
     webRef.current?.injectJavaScript(js);
-    // Compact popup: column layout (photo top, text below), 2/3 screen width
     webRef.current?.injectJavaScript(
       `(function(){var s=document.createElement('style');` +
       `s.textContent=` +
@@ -62,13 +59,10 @@ export default function MarketMapScreen() {
   }, [mode, hideSavedButton, autoOpenSaved]);
 
   const src = `${MAP_URL}?theme=${mode}&title=${encodeURIComponent(screenTitle)}`;
-
-  // Determine whether we have a back button (was pushed onto a stack)
   const canGoBack = navigation.canGoBack();
 
   return (
     <View style={[s.screen, { backgroundColor: C.bgBase }]}>
-      {/* ── Top bar — hidden inside BuyContext (outer TopBar covers it) ── */}
       {!hideHeader && (
         <View style={[s.topBar, { backgroundColor: C.bgSurface, borderBottomColor: C.bgBorder }]}>
           {canGoBack ? (
@@ -92,15 +86,12 @@ export default function MarketMapScreen() {
         </View>
       )}
 
-      {/* ── Map WebView ──────────────────────────────────────────────── */}
       <WebView
         ref={webRef}
         source={{ uri: src }}
         style={{ flex: 1, backgroundColor: C.bgBase }}
         onLoad={injectTheme}
-        onMessage={(_e: WebViewMessageEvent) => {
-          // future: handle messages from the map (e.g. property selected)
-        }}
+        onMessage={(_e: WebViewMessageEvent) => {}}
         startInLoadingState
         renderLoading={() => (
           <View style={[s.loader, { backgroundColor: C.bgBase }]}>
@@ -153,4 +144,14 @@ const s = StyleSheet.create({
   title:      { fontSize: 15, fontWeight: '700' },
   reloadBtn:  { padding: 4 },
   loader:     {
-    position: 'absolute', top: 0, lef
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  retryBtn:   {
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.full,
+  },
+  retryText:  { color: '#fff', fontSize: 14, fontWeight: '600' },
+});
