@@ -1,4 +1,9 @@
-param([string]$Branch = "")
+param(
+    [string]$Branch = "",
+    [ValidateSet("update","build")][string]$Mode = "update",
+    [ValidateSet("android","ios")][string]$Platform = "android",
+    [string]$Profile = "preview"
+)
 $ErrorActionPreference = "Continue"
 
 $channels = @{
@@ -20,60 +25,55 @@ $expoUrl   = "exp://u.expo.dev/$projectId`?channel-name=$channel"
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "  TARS Mobile -- branch: $Branch" -ForegroundColor Cyan
+Write-Host "  TARS Mobile -- $Branch  (mode: $Mode)" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ── Step 1: checkout branch ──────────────────────────────────────────────────
-Write-Host "[1/3] Fetching branch '$Branch' from GitHub..." -ForegroundColor Yellow
+# -- Step 1: checkout branch --
+Write-Host "[1/3] Checking out '$Branch'..." -ForegroundColor Yellow
 Set-Location $target
-
-# Remove stale git locks
 if (Test-Path ".git\index.lock") { Remove-Item ".git\index.lock" -Force }
 if (Test-Path ".git\HEAD.lock")  { Remove-Item ".git\HEAD.lock"  -Force }
-
 git fetch origin
-
-# Discard ALL local changes (tracked + untracked) so checkout never conflicts
 git checkout -- .
 git clean -fd | Out-Null
-
 git checkout $Branch
 git reset --hard "origin/$Branch"
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: could not switch to branch $Branch" -ForegroundColor Red
-    Read-Host "Press Enter to exit"; exit 1
-}
-
-Write-Host "OK -- on branch $Branch" -ForegroundColor Green
+if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: cannot switch to $Branch" -ForegroundColor Red; Read-Host "Enter to exit"; exit 1 }
+Write-Host "OK -- on $Branch" -ForegroundColor Green
 Write-Host ""
 
-# ── Step 2: npm install ──────────────────────────────────────────────────────
+# -- Step 2: install deps --
 Write-Host "[2/3] Installing dependencies..." -ForegroundColor Yellow
 npm install --legacy-peer-deps
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: npm install failed" -ForegroundColor Red
-    Read-Host "Press Enter to exit"; exit 1
-}
+if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: npm install failed" -ForegroundColor Red; Read-Host "Enter to exit"; exit 1 }
 Write-Host "OK" -ForegroundColor Green
 Write-Host ""
 
-# ── Step 3: publish OTA ──────────────────────────────────────────────────────
-Write-Host "[3/3] Publishing to EAS channel '$channel'..." -ForegroundColor Yellow
-Write-Host ""
-npx eas update --channel $channel --message "deploy $channel"
-
-Write-Host ""
-Write-Host "============================================" -ForegroundColor Green
-Write-Host "  DONE -- $channel" -ForegroundColor Green
-Write-Host ""
-Write-Host "  Expo Go URL:" -ForegroundColor White
-Write-Host "  $expoUrl" -ForegroundColor Cyan
-Write-Host "============================================" -ForegroundColor Green
-Write-Host ""
-Write-Host "  Scan with Expo Go:" -ForegroundColor White
-Write-Host ""
-npx -y --package=qrcode-terminal node -e "require('qrcode-terminal').generate('$expoUrl',{small:true},function(s){process.stdout.write(s)})"
+# -- Step 3: build a native binary OR push an OTA JS update --
+if ($Mode -eq "build") {
+    Write-Host "[3/3] Native BUILD for '$channel' ($Platform / $Profile)..." -ForegroundColor Yellow
+    Write-Host "  Unique bundle ID per branch -> installs alongside the other TARS apps." -ForegroundColor DarkGray
+    Write-Host "  (first iOS build may prompt for Apple credentials)" -ForegroundColor DarkGray
+    Write-Host ""
+    npx eas build --profile $Profile --platform $Platform
+    Write-Host ""
+    Write-Host "============================================" -ForegroundColor Green
+    Write-Host "  BUILD QUEUED -- $channel ($Platform)" -ForegroundColor Green
+    Write-Host "  Install the finished build from the EAS URL/QR shown above." -ForegroundColor White
+    Write-Host "============================================" -ForegroundColor Green
+} else {
+    Write-Host "[3/3] OTA update to channel '$channel'..." -ForegroundColor Yellow
+    Write-Host "  (the '$channel' app must already be installed via -Mode build)" -ForegroundColor DarkGray
+    Write-Host ""
+    npx eas update --channel $channel --message "deploy $channel"
+    Write-Host ""
+    Write-Host "============================================" -ForegroundColor Green
+    Write-Host "  OTA DONE -- $channel" -ForegroundColor Green
+    Write-Host "  Expo Go URL: $expoUrl" -ForegroundColor Cyan
+    Write-Host "============================================" -ForegroundColor Green
+    Write-Host ""
+    npx -y --package=qrcode-terminal node -e "require('qrcode-terminal').generate('$expoUrl',{small:true},function(s){process.stdout.write(s)})"
+}
 Write-Host ""
 Read-Host "Press Enter to close"
