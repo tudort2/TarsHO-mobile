@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "TARS",
+    "name": "TARS v5",
     "slug": "tars-app",
     "owner": "tudor.toma.team",
     "version": "1.0.0",
@@ -8,10 +8,10 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.tarsusa.homeownership"
+      "bundleIdentifier": "com.tarsusa.app.v5"
     },
     "android": {
-      "package": "com.tarsusa.homeownership"
+      "package": "com.tarsusa.app.v5"
     },
     "runtimeVersion": {
       "policy": "sdkVersion"
