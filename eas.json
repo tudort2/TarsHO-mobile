@@ -7,17 +7,17 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "main"
+      "channel": "mv7"
     },
     "preview": {
       "distribution": "internal",
-      "channel": "main",
+      "channel": "mv7",
       "ios": {
         "simulator": false
       }
     },
     "production": {
-      "channel": "main"
+      "channel": "mv7"
     }
   },
   "submit": {

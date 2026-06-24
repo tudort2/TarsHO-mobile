@@ -1,7 +1,7 @@
-// Branch: main - auto-generated, do not edit manually
-export const VARIANT        = 'main' as const;
-export const CHANNEL        = 'main' as const;
-export const VARIANT_NUMBER = 0;
+// Branch: mv7 - auto-generated, do not edit manually
+export const VARIANT        = 'mv7' as const;
+export const CHANNEL        = 'mv7' as const;
+export const VARIANT_NUMBER = 7;
 
 // Feature flags - toggle per branch as needed
 export const FEATURES = {
