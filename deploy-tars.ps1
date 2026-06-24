@@ -7,12 +7,12 @@ param(
 $ErrorActionPreference = "Continue"
 
 $channels = @{
-    "1"="ui-v1"; "2"="ui-v2"; "3"="ui-v3"; "4"="ui-v4"; "5"="ui-v5";
-    "6"="ui-v6"; "7"="ui-v7"; "8"="ui-v8"; "9"="ui-v9"; "10"="ui-v10"
+    "1"="mv1"; "2"="mv2"; "3"="mv3"; "4"="mv4"; "5"="mv5";
+    "6"="mv6"; "7"="mv7"; "8"="mv8"; "9"="mv9"; "10"="mv10"
 }
 
 if (-not $Branch) {
-    $variant = Read-Host "Variant (1-10 = ui-v1..v10, Enter = main)"
+    $variant = Read-Host "Variant (1-10 = mv1..mv10, Enter = main)"
     $Branch  = if ($channels.ContainsKey($variant)) { $channels[$variant] } else { "main" }
 } elseif ($channels.ContainsKey($Branch)) {
     $Branch = $channels[$Branch]
