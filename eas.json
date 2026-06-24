@@ -7,11 +7,11 @@
     },
     "preview": {
       "distribution": "internal",
-      "channel": "ui-v1",
+      "channel": "mv1",
       "ios": { "simulator": false }
     },
     "production": {
-      "channel": "ui-v1"
+      "channel": "mv1"
     }
   },
   "submit": {
