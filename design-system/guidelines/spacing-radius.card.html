@@ -1,0 +1,16 @@
+<!-- @dsCard group="Spacing" viewport="700x150" name="Radius" subtitle="8 · 14 card · 22 hero · full" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { padding: 20px; display: flex; align-items: center; gap: 20px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .box { width: 72px; height: 56px; background: var(--surface); border: 1px solid var(--border-2); box-shadow: var(--shadow-sm); }
+  .nm { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-2); }
+</style></head>
+<body>
+  <div class="col"><div class="box" style="border-radius:var(--radius-sm)"></div><div class="nm">sm·8</div></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius)"></div><div class="nm">base·14</div></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius-lg)"></div><div class="nm">lg·22</div></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius-full)"></div><div class="nm">full</div></div>
+</body></html>

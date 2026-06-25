@@ -1,0 +1,21 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Accent tints" subtitle="12% soft fills behind pills, chips & KPIs" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { padding: 18px; }
+  .row { display: flex; gap: 12px; }
+  .sw { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .chip { width: 100%; height: 52px; border-radius: 10px; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+  .nm { font-size: 11px; color: var(--ink-3); font-family: var(--font-mono); }
+</style></head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--tint-blue);color:var(--primary)">Aa</div><div class="nm">blue</div></div>
+    <div class="sw"><div class="chip" style="background:var(--tint-violet);color:var(--buy)">Aa</div><div class="nm">violet</div></div>
+    <div class="sw"><div class="chip" style="background:var(--tint-cyan);color:var(--sell)">Aa</div><div class="nm">cyan</div></div>
+    <div class="sw"><div class="chip" style="background:var(--tint-green);color:var(--success)">Aa</div><div class="nm">green</div></div>
+    <div class="sw"><div class="chip" style="background:var(--tint-amber);color:#A8771F">Aa</div><div class="nm">amber</div></div>
+    <div class="sw"><div class="chip" style="background:var(--tint-rose);color:var(--danger)">Aa</div><div class="nm">rose</div></div>
+  </div>
+</body></html>

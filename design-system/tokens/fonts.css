@@ -1,0 +1,7 @@
+/* ============================================================
+   TARS — Webfonts
+   Display: Geist · Body: Inter · Mono: IBM Plex Mono
+   All three ship from Google Fonts. The @import below MUST stay
+   first so the @font-face rules load ahead of any usage.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');

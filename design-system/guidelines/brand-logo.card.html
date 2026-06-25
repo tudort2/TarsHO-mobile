@@ -1,0 +1,24 @@
+<!-- @dsCard group="Brand" viewport="700x180" name="Logo lockup" subtitle="Mark + wordmark — reconstruction, see README" -->
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { padding: 24px; display: flex; align-items: center; gap: 40px; }
+  .lockup { display: flex; align-items: center; gap: 14px; }
+  .mark { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, var(--primary), var(--sell)); display: grid; place-items: center; box-shadow: var(--shadow); }
+  .wm { font-family: var(--font-display); font-weight: 800; font-size: 26px; letter-spacing: -0.5px; color: var(--ink); line-height: 1; }
+  .sub { font-family: var(--font-sans); font-weight: 600; font-size: 10px; letter-spacing: 1.6px; color: var(--ink-2); margin-top: 3px; }
+  .onDark { background: var(--tars-navy-900); border-radius: 16px; padding: 18px 22px; }
+  .onDark .wm { color: #fff; }
+  .onDark .sub { color: var(--tars-slate-300); }
+</style></head>
+<body>
+  <div class="lockup">
+    <div class="mark"><img src="../assets/tars-mark.svg" width="30" height="30" alt="" /></div>
+    <div><div class="wm">TARS</div><div class="sub">HOME OWNERSHIP</div></div>
+  </div>
+  <div class="lockup onDark">
+    <div class="mark" style="box-shadow:none"><img src="../assets/tars-mark.svg" width="30" height="30" alt="" /></div>
+    <div><div class="wm">TARS</div><div class="sub">HOME OWNERSHIP</div></div>
+  </div>
+</body></html>

@@ -1,0 +1,118 @@
+/* ============================================================
+   TARS — Color tokens
+   Brand role mapping (READ THIS):
+     • PRIMARY  = brand blue   #2563EB   (desktop var: --teal  ⚠ misnamed)
+     • BUY      = violet       #8B5CF6   (desktop var: --indigo)
+     • SELL     = cyan         #06B6D4   (desktop var: --coral  ⚠ misnamed)
+   The desktop CSS var names (--teal/--indigo/--coral) are historical and
+   do NOT match their hue. Reason in terms of ROLE, not var name.
+   Every theme value is exposed as a semantic alias; light is default,
+   dark activates under [data-theme="dark"].
+   ============================================================ */
+
+:root {
+  /* ── Base palette (theme-independent ramps) ────────────────── */
+  --tars-navy-950: #0B1220;
+  --tars-navy-900: #0F172A;
+  --tars-navy-800: #162033;
+  --tars-navy-700: #1E293B;
+  --tars-slate-500: #64748B;
+  --tars-slate-300: #94A3B8;
+  --tars-slate-200: #CBD5E1;
+  --tars-slate-100: #E2E8F0;
+  --tars-slate-50:  #F1F5F9;
+  --tars-bg:        #F8FAFC;
+  --tars-surface:   #FFFFFF;
+
+  --tars-blue:       #2563EB;   /* PRIMARY */
+  --tars-blue-600:   #1D4ED8;
+  --tars-blue-100:   rgba(37,99,235,.12);
+  --tars-violet:     #8B5CF6;   /* BUY */
+  --tars-violet-100: rgba(139,92,246,.12);
+  --tars-cyan:       #06B6D4;   /* SELL */
+  --tars-cyan-100:   rgba(6,182,212,.12);
+  --tars-indigo:     #6366F1;
+  --tars-indigo-100: rgba(99,102,241,.12);
+  --tars-green:      #10B981;   /* SUCCESS */
+  --tars-amber:      #F59E0B;   /* WARNING */
+  --tars-rose:       #F43F5E;   /* DANGER */
+
+  /* ── Light theme (default) ─────────────────────────────────── */
+  --bg:        #F8FAFC;   /* app background */
+  --bg-2:      #F1F5F9;   /* background alt / hover fill */
+  --surface:   #FFFFFF;   /* card / panel */
+  --surface-2: #F8FAFC;   /* nested surface */
+  --border:    #E2E8F0;   /* hairline */
+  --border-2:  #CBD5E1;   /* strong border */
+
+  --ink:   #0F172A;       /* text primary */
+  --ink-2: #64748B;       /* text secondary */
+  --ink-3: #94A3B8;       /* text muted */
+
+  /* semantic text aliases */
+  --text-primary:   #0F172A;
+  --text-secondary: #64748B;
+  --text-muted:     #94A3B8;
+  --text-display:   #0F172A;
+  --text-inverse:   #FFFFFF;
+
+  /* ── Brand accents (role names; legacy aliases below) ──────── */
+  --primary:    #2563EB;  --primary-2:  rgba(37,99,235,.12);
+  --buy:        #8B5CF6;  --buy-2:      rgba(139,92,246,.12);
+  --sell:       #06B6D4;  --sell-2:     rgba(6,182,212,.12);
+
+  /* legacy desktop var names (kept for parity with TarsHO source) */
+  --teal:    #2563EB;     --teal-2:   rgba(37,99,235,.12);
+  --indigo:  #8B5CF6;     --indigo-2: rgba(139,92,246,.12);
+  --coral:   #06B6D4;     --coral-2:  rgba(6,182,212,.12);
+
+  /* ── Status ────────────────────────────────────────────────── */
+  --success:  #10B981;    --success-2: rgba(16,185,129,.12);
+  --warning:  #F59E0B;    --warning-2: rgba(245,158,11,.14);
+  --danger:   #F43F5E;    --danger-2:  rgba(244,63,94,.12);
+
+  /* ── Surface accent tints (chips / journey ramps) ──────────── */
+  --tint-blue:   rgba(37,99,235,.12);
+  --tint-violet: rgba(139,92,246,.12);
+  --tint-cyan:   rgba(6,182,212,.12);
+  --tint-green:  rgba(16,185,129,.12);
+  --tint-amber:  rgba(245,158,11,.14);
+  --tint-rose:   rgba(244,63,94,.12);
+}
+
+/* ── Dark theme ───────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:        #0F172A;
+  --bg-2:      #0B1220;
+  --surface:   #162033;
+  --surface-2: #0F172A;
+  --border:    #1E293B;
+  --border-2:  #2A3A55;
+
+  --ink:   #F8FAFC;
+  --ink-2: #94A3B8;
+  --ink-3: #64748B;
+
+  --text-primary:   #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted:     #64748B;
+  --text-display:   #F8FAFC;
+
+  --primary-2: rgba(37,99,235,.18);
+  --buy-2:     rgba(139,92,246,.20);
+  --sell-2:    rgba(6,182,212,.18);
+  --teal-2:    rgba(37,99,235,.18);
+  --indigo-2:  rgba(139,92,246,.20);
+  --coral-2:   rgba(6,182,212,.18);
+
+  --success:  #34D399;    --success-2: rgba(52,211,153,.15);
+  --warning:  #FCD34D;    --warning-2: rgba(252,211,77,.12);
+  --danger:   #FB7185;    --danger-2:  rgba(251,113,133,.15);
+
+  --tint-blue:   rgba(37,99,235,.18);
+  --tint-violet: rgba(139,92,246,.20);
+  --tint-cyan:   rgba(6,182,212,.18);
+  --tint-green:  rgba(52,211,153,.15);
+  --tint-amber:  rgba(252,211,77,.12);
+  --tint-rose:   rgba(251,113,133,.15);
+}

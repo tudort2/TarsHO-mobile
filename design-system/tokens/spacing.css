@@ -1,0 +1,36 @@
+/* ============================================================
+   TARS — Spacing, radius, elevation, motion
+   4 / 8 base rhythm. Card radius 14 (desktop) / 16 (mobile).
+   ============================================================ */
+
+:root {
+  /* ── Spacing scale (4 / 8 base) ────────────────────────────── */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-xxl: 48px;
+
+  /* ── Radius ────────────────────────────────────────────────── */
+  --radius-sm:   8px;
+  --radius:     14px;   /* canonical card */
+  --radius-lg:  22px;   /* hero / large tile */
+  --radius-full: 999px; /* pills, avatars */
+
+  /* ── Elevation — subtle, navy-tinted ───────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.04), 0 1px 1px rgba(15,23,42,.03);
+  --shadow:    0 8px 24px -10px rgba(15,23,42,.10), 0 2px 6px -2px rgba(15,23,42,.06);
+  --shadow-lg: 0 24px 60px -20px rgba(15,23,42,.16), 0 6px 16px -6px rgba(15,23,42,.08);
+
+  /* ── Motion ────────────────────────────────────────────────── */
+  --ease: cubic-bezier(.2,.7,.3,1);   /* @kind other */
+  --dur:  150ms;                       /* @kind other */
+}
+
+/* Dark elevation reads against navy surfaces with deeper, neutral shadows */
+[data-theme="dark"] {
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.20);
+  --shadow:    0 8px 24px -10px rgba(0,0,0,.35), 0 2px 6px -2px rgba(0,0,0,.18);
+  --shadow-lg: 0 24px 60px -20px rgba(0,0,0,.50), 0 6px 16px -6px rgba(0,0,0,.25);
+}

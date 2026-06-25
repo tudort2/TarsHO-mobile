@@ -1,0 +1,94 @@
+/* ============================================================
+   TARS — Typography tokens
+   Families: Display Geist · Body Inter · Mono IBM Plex Mono
+   Desktop sizes (px) are the canonical scale; mobile runs
+   ~10-15% smaller at the same hierarchy & weights.
+   ============================================================ */
+
+:root {
+  /* ── Families ──────────────────────────────────────────────── */
+  --font-display: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* backward-compat aliases used across the TarsHO source */
+  --serif: var(--font-display);
+  --sans:  var(--font-sans);
+
+  /* ── Sizes (desktop scale) ─────────────────────────────────── */
+  --fs-display: 40px;
+  --fs-h1:      28px;
+  --fs-h2:      22px;
+  --fs-h3:      18px;
+  --fs-body:    14px;
+  --fs-label:   13px;
+  --fs-meta:    12px;
+
+  /* ── Line-heights ──────────────────────────────────────────── */
+  --lh-tight:  1.1;    /* @kind other */
+  --lh-snug:   1.3;    /* @kind other */
+  --lh-normal: 1.5;    /* @kind other */
+
+  /* ── Tracking ──────────────────────────────────────────────── */
+  --tracking-display: -0.02em;
+  --tracking-heading: -0.01em;
+  --tracking-label:    0.05em;
+}
+
+/* ── Type primitives (mirror desktop .h1/.h2/.h3 etc.) ────────── */
+.tars-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-display);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--lh-tight);
+  color: var(--text-display);
+  margin: 0;
+}
+.tars-h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-h1);
+  letter-spacing: var(--tracking-heading);
+  line-height: var(--lh-snug);
+  margin: 0;
+}
+.tars-h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-h2);
+  letter-spacing: var(--tracking-heading);
+  line-height: var(--lh-snug);
+  margin: 0;
+}
+.tars-h3 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-snug);
+  margin: 0;
+}
+.tars-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: var(--fs-body);
+  line-height: var(--lh-normal);
+}
+.tars-label {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--ink-3);
+}
+.tars-meta {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+}
+.tars-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+}

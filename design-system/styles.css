@@ -1,0 +1,11 @@
+/* ============================================================
+   TARS Design System — global entry point
+   Consumers link THIS file only. Keep it as @import lines.
+   ============================================================ */
+@import url('./tokens/fonts.css');
+@import url('./tokens/colors.css');
+@import url('./tokens/typography.css');
+@import url('./tokens/spacing.css');
+
+/* Base reset shared by specimen cards & kits */
+@import url('./tokens/base.css');
